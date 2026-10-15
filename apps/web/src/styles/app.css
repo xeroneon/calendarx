@@ -1,0 +1,134 @@
+:root {
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial,
+    sans-serif;
+  background: var(--cx-bg, #fafafa);
+  color: var(--cx-fg, #1a1a1a);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: var(--cx-bg, #0b0b0f);
+    color: var(--cx-fg, #eaeaea);
+  }
+}
+
+.cl-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cl-brandbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--cx-border, rgba(0, 0, 0, 0.1));
+}
+
+.cl-brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cl-brandnav {
+  display: flex;
+  gap: 1rem;
+}
+
+.cl-brandlink {
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.cl-brandlink:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.cl-main {
+  flex: 1;
+  padding: 1.25rem;
+}
+
+.cl-welcome {
+  max-width: 620px;
+  margin: 10vh auto;
+}
+
+.cl-welcome h1 {
+  font-size: 2rem;
+  margin: 0 0 0.5rem;
+}
+
+.cl-muted {
+  color: var(--cx-fg-muted, #6b6b6b);
+}
+
+.muted {
+  color: var(--cx-fg-muted, #6b6b6b);
+}
+
+.btn.ghost {
+  border-color: transparent;
+  opacity: 0.85;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--cx-border, rgba(0, 0, 0, 0.12));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn.primary {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+
+.card {
+  border: 1px solid var(--cx-border, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: var(--cx-card-bg, rgba(255, 255, 255, 0.6));
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: var(--cx-card-bg, rgba(255, 255, 255, 0.04));
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}

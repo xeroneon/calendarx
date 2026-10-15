@@ -1,0 +1,29 @@
+# deps
+node_modules/
+.pnpm-store/
+.turbo/
+
+# build
+dist/
+build/
+.next/
+out/
+.output/
+
+# env
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# test / coverage
+coverage/
+
+# Android signing — keystore + credentials NEVER committed
+.keystore/
+local.properties

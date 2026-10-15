@@ -1,0 +1,360 @@
+/*
+ * Xeroneon Cloud — design tokens (Linear look), Phase 0.3 (XER-74).
+ *
+ * Single import for the whole design system: color/surface/type/radius/
+ * elevation/motion/z-index variables for light + dark themes, plus the
+ * hairline-border, focus-ring, mono/kbd and 120–180ms motion primitives the
+ * `@xeroneon/ui` React components build on.
+ *
+ * Themes: light is the default. Set `data-theme="dark"` on <html> (or any
+ * element) to force dark; otherwise dark follows the OS preference unless
+ * `data-theme="light"` is present.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── Accent — indigo-violet (the one restrained accent) ────────────── */
+  --cx-accent-25: #f5f6ff;
+  --cx-accent-50: #eef0ff;
+  --cx-accent-100: #e0e4ff;
+  --cx-accent-200: #c7cdff;
+  --cx-accent-300: #a5abfb;
+  --cx-accent-400: #818cf8;
+  --cx-accent-500: #6366f1;
+  --cx-accent-600: #4f46e5;
+  --cx-accent-700: #4338ca;
+  --cx-accent-800: #3730a3;
+  --cx-accent-900: #312e81;
+  --cx-accent-950: #1e1b66;
+
+  /* ── Neutral ramp ──────────────────────────────────────────────────── */
+  --cx-neutral-0: #ffffff;
+  --cx-neutral-50: #fafafa;
+  --cx-neutral-100: #f4f4f5;
+  --cx-neutral-200: #e4e4e7;
+  --cx-neutral-300: #d4d4d8;
+  --cx-neutral-400: #a1a1aa;
+  --cx-neutral-500: #71717a;
+  --cx-neutral-600: #52525b;
+  --cx-neutral-700: #3f3f46;
+  --cx-neutral-800: #27272a;
+  --cx-neutral-900: #18181b;
+  --cx-neutral-950: #09090b;
+
+  /* ── Semantic ──────────────────────────────────────────────────────── */
+  --cx-success: #22c55e;
+  --cx-success-fg: #ffffff;
+  --cx-warning: #f59e0b;
+  --cx-warning-fg: #1c1917;
+  --cx-danger: #ef4444;
+  --cx-danger-fg: #ffffff;
+  --cx-info: #6366f1;
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --cx-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --cx-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono',
+    Menlo, Consolas, monospace;
+
+  --cx-text-xs: 0.75rem; --cx-lh-xs: 1rem;
+  --cx-text-sm: 0.8125rem; --cx-lh-sm: 1.25rem;
+  --cx-text-md: 0.875rem; --cx-lh-md: 1.25rem;
+  --cx-text-lg: 1rem; --cx-lh-lg: 1.5rem;
+  --cx-text-xl: 1.25rem; --cx-lh-xl: 1.75rem;
+  --cx-text-2xl: 1.5rem; --cx-lh-2xl: 2rem;
+
+  --cx-weight-regular: 400;
+  --cx-weight-medium: 500;
+  --cx-weight-semibold: 600;
+  --cx-weight-bold: 700;
+  --cx-track-tight: -0.011em;
+  --cx-track-normal: 0;
+  --cx-track-wide: 0.02em;
+
+  /* ── Radius ────────────────────────────────────────────────────────── */
+  --cx-radius-none: 0;
+  --cx-radius-sm: 6px;
+  --cx-radius-md: 10px;
+  --cx-radius-lg: 14px;
+  --cx-radius-full: 9999px;
+
+  /* ── Spacing (4px base) ────────────────────────────────────────────── */
+  --cx-sp-1: 4px; --cx-sp-2: 8px; --cx-sp-3: 12px; --cx-sp-4: 16px;
+  --cx-sp-5: 20px; --cx-sp-6: 24px; --cx-sp-8: 32px; --cx-sp-10: 40px;
+  --cx-sp-12: 48px; --cx-sp-16: 64px; --cx-sp-20: 80px; --cx-sp-24: 96px;
+  --cx-sp-32: 128px; --cx-sp-40: 160px; --cx-sp-48: 192px;
+
+  /* ── Motion — clamped to the Linear 120–180ms band, no bounce ──────── */
+  --cx-dur-fast: 120ms;
+  --cx-dur-base: 150ms;
+  --cx-dur-slow: 180ms;
+  --cx-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --cx-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --cx-ease-in-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ── Z-index ladder ────────────────────────────────────────────────── */
+  --cx-z-base: 0;
+  --cx-z-dropdown: 1000;
+  --cx-z-sticky: 1100;
+  --cx-z-overlay: 1200;
+  --cx-z-modal: 1300;
+  --cx-z-popover: 1400;
+  --cx-z-toast: 1500;
+  --cx-z-tooltip: 1600;
+
+  /* ── Focus ring ────────────────────────────────────────────────────── */
+  --cx-ring-width: 2px;
+  --cx-ring-offset: 2px;
+
+  /* ══ Theme-dependent ───────────────────────────────────────────────── */
+  --cx-bg: #fafafa;
+  --cx-surface: #ffffff;
+  --cx-surface-hover: #f4f4f5;
+  --cx-surface-active: #eceae9;
+  --cx-surface-raised: #ffffff;
+  --cx-border: #e4e4e7;
+  --cx-border-strong: #d4d4d8;
+  --cx-border-hover: #c4c4c8;
+  --cx-text: #18181b;
+  --cx-text-muted: #71717a;
+  --cx-text-faint: #a1a1aa;
+  --cx-text-inverse: #ffffff;
+  --cx-overlay: rgba(24, 24, 27, 0.45);
+  --cx-selection: rgba(99, 102, 241, 0.2);
+
+  --cx-elev-0: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --cx-elev-1: 0 1px 3px rgba(9, 9, 11, 0.06), 0 4px 16px rgba(9, 9, 11, 0.08);
+  --cx-elev-2: 0 2px 6px rgba(9, 9, 11, 0.08), 0 12px 40px rgba(9, 9, 11, 0.14);
+
+  --cx-ring-color: rgba(99, 102, 241, 0.55);
+
+  /* ── App-shell sidebar ─────────────────────────────────────────────── */
+  --cx-sidebar-width: 248px;
+  --cx-sidebar-breakpoint: 768px;
+}
+
+:root[data-theme='dark'] {
+  --cx-bg: #0a0a0b;
+  --cx-surface: #18181b;
+  --cx-surface-hover: #1f1f22;
+  --cx-surface-active: #26262a;
+  --cx-surface-raised: #222225;
+  --cx-border: #26262a;
+  --cx-border-strong: #333338;
+  --cx-border-hover: #414146;
+  --cx-text: #f4f4f5;
+  --cx-text-muted: #a1a1aa;
+  --cx-text-faint: #71717a;
+  --cx-text-inverse: #ffffff;
+  --cx-overlay: rgba(0, 0, 0, 0.6);
+  --cx-selection: rgba(99, 102, 241, 0.35);
+
+  --cx-elev-0: 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --cx-elev-1: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.5);
+  --cx-elev-2: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 40px rgba(0, 0, 0, 0.6);
+
+  --cx-ring-color: rgba(129, 140, 248, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --cx-bg: #0a0a0b;
+    --cx-surface: #18181b;
+    --cx-surface-hover: #1f1f22;
+    --cx-surface-active: #26262a;
+    --cx-surface-raised: #222225;
+    --cx-border: #26262a;
+    --cx-border-strong: #333338;
+    --cx-border-hover: #414146;
+    --cx-text: #f4f4f5;
+    --cx-text-muted: #a1a1aa;
+    --cx-text-faint: #71717a;
+    --cx-text-inverse: #ffffff;
+    --cx-overlay: rgba(0, 0, 0, 0.6);
+    --cx-selection: rgba(99, 102, 241, 0.35);
+
+    --cx-elev-0: 0 0 0 1px rgba(255, 255, 255, 0.03);
+    --cx-elev-1: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.5);
+    --cx-elev-2: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 40px rgba(0, 0, 0, 0.6);
+
+    --cx-ring-color: rgba(129, 140, 248, 0.6);
+  }
+}
+
+/* ══ Primitives / utilities ════════════════════════════════════════════ */
+
+/* Dense base font for the whole shell (consumers set page bg/fg). */
+.cx-font-sans { font-family: var(--cx-font-sans); }
+.cx-font-mono { font-family: var(--cx-font-mono); }
+.cx-hairline { border: 1px solid var(--cx-border); }
+
+/* Keyboard keycap — JetBrains Mono identifiers/keys. */
+.cx-kbd {
+  font-family: var(--cx-font-mono);
+  font-size: var(--cx-text-xs);
+  line-height: var(--cx-lh-xs);
+  font-weight: var(--cx-weight-medium);
+  color: var(--cx-text-muted);
+  background: var(--cx-surface-hover);
+  border: 1px solid var(--cx-border);
+  border-bottom-width: 2px;
+  border-radius: var(--cx-radius-sm);
+  padding: 0 6px;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-variant-ligatures: none;
+}
+
+/* Visible focus ring (Linear: soft accent ring, hairline offset). */
+.cx-focus-visible:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--cx-ring-width) var(--cx-bg),
+    0 0 0 calc(var(--cx-ring-width) + var(--cx-ring-offset))
+      var(--cx-ring-color);
+  transition: box-shadow var(--cx-dur-fast) var(--cx-ease-in-out);
+}
+
+/* Motion helper — put on anything that animates between states. */
+.cx-motion {
+  transition-duration: var(--cx-dur-base);
+  transition-timing-function: var(--cx-ease-in-out);
+}
+
+/* Scrollbars (both themes). */
+* { scrollbar-width: thin; scrollbar-color: var(--cx-border-strong) transparent; }
+
+/* Shared component keyframes (Spinner, Skeleton). */
+@keyframes cx-spin { to { transform: rotate(360deg); } }
+@keyframes cx-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ── Tooltip (CSS-only, hover + keyboard focus) ────────────────────────── */
+.cx-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+.cx-tooltip__bubble {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-2px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: var(--cx-z-tooltip);
+  background: var(--cx-neutral-900);
+  color: var(--cx-neutral-100);
+  font-family: var(--cx-font-sans);
+  font-size: var(--cx-text-xs);
+  line-height: 1.2;
+  font-weight: var(--cx-weight-medium);
+  letter-spacing: var(--cx-track-tight);
+  padding: 5px 8px;
+  border-radius: var(--cx-radius-sm);
+  border: 1px solid var(--cx-neutral-700);
+  box-shadow: var(--cx-elev-1);
+  white-space: nowrap;
+  transition: opacity var(--cx-dur-base) var(--cx-ease-in-out),
+    transform var(--cx-dur-base) var(--cx-ease-in-out);
+}
+.cx-tooltip[data-placement='top'] .cx-tooltip__bubble {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(2px);
+}
+.cx-tooltip:hover .cx-tooltip__bubble,
+.cx-tooltip:focus-within .cx-tooltip__bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-tooltip__bubble { transition: none; }
+}
+
+/* ── App-shell sidebar (desktop rail / mobile off-canvas drawer) ───────── */
+.cx-sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--cx-sidebar-width);
+  background: var(--cx-surface);
+  border-right: 1px solid var(--cx-border);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--cx-z-sticky);
+  overflow-y: auto;
+  transform: translateX(-100%); /* mobile default: off-canvas (starts closed) */
+  transition: transform var(--cx-dur-base) var(--cx-ease-in-out);
+}
+.cx-sidebar[data-cx-sidebar-rail] {
+  transform: none; /* desktop: persistent rail */
+}
+.cx-sidebar[data-cx-sidebar-open] {
+  transform: none; /* mobile: drawer slid in */
+}
+.cx-sidebar__backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--cx-overlay);
+  z-index: calc(var(--cx-z-sticky) - 1);
+  animation: cx-fade var(--cx-dur-base) var(--cx-ease-in-out);
+}
+.cx-sidebar__content {
+  display: flex;
+  flex-direction: column;
+  padding: var(--cx-sp-6) var(--cx-sp-4);
+  gap: var(--cx-sp-1);
+}
+/* Mobile-only top bar (hamburger + brand). Hidden on the desktop rail. */
+.cx-sidebar__topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cx-sp-4);
+  padding: var(--cx-sp-3) var(--cx-sp-4);
+  background: var(--cx-surface);
+  border-bottom: 1px solid var(--cx-border);
+  z-index: calc(var(--cx-z-sticky) - 1);
+}
+.cx-sidebar__topbar[data-cx-sidebar-rail] {
+  display: none;
+}
+.cx-sidebar__hamburger {
+  flex-shrink: 0;
+}
+.cx-sidebar__topbar-brand {
+  font-weight: var(--cx-weight-bold);
+  color: var(--cx-text);
+}
+.cx-sidebar__brand {
+  font-weight: var(--cx-weight-bold);
+  color: var(--cx-text);
+}
+.cx-sidebar__brand a,
+.cx-sidebar__topbar-brand a {
+  text-decoration: none;
+  color: var(--cx-text);
+}
+.cx-sidebar__brand a:hover,
+.cx-sidebar__topbar-brand a:hover {
+  color: var(--cx-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-sidebar { transition: none; }
+}
+
+/* ── Overlay entrance (Dialog) ─────────────────────────────────────────── */
+@keyframes cx-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cx-pop {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes cx-command-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

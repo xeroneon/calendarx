@@ -1,0 +1,157 @@
+name: Android Release (signed APK -> GitHub Release)
+
+on:
+  push:
+    # Release tags drive versioning: v0.1.0 -> calendax-v0.1.0.apk
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0). If blank, derived from package.json.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build + sign APK and attach to GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 21 (AGP 8.x requires JDK 17+)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Setup Android SDK packages for compileSdk 36
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          # sdkmanager is not on PATH by default on the runner — point at the
+          # preinstalled cmdline-tools (latest symlink, fall back to 16.0).
+          if [[ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]]; then
+            CMDBIN="$ANDROID_HOME/cmdline-tools/latest/bin"
+          elif [[ -x "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" ]]; then
+            CMDBIN="$ANDROID_HOME/cmdline-tools/16.0/bin"
+          else
+            CMDBIN="$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager 2>/dev/null | head -1)")"
+          fi
+          echo "sdkmanager dir: $CMDBIN"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$CMDBIN:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/36.0.0" >> "$GITHUB_PATH"
+          yes | "$CMDBIN/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$CMDBIN/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web client (Capacitor webDir) + workspace deps
+        run: pnpm --filter "@calendax/web..." build
+      - name: Determine release version
+        id: ver
+        run: |
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./apps/web/package.json').version")"
+          fi
+          echo "version=${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          # APK versionCode: derive an integer from the semver (all digits concat).
+          VERSION_CODE="$(echo "$VERSION" | tr -cd '0-9' | sed 's/^0*//')"
+          VERSION_CODE="${VERSION_CODE:-1}"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Decode signing keystore from CI secret (never committed)
+        run: |
+          mkdir -p .keystore
+          echo "${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}" | base64 -d > .keystore/calendax.keystore
+          test -s .keystore/calendax.keystore || { echo "::error::ANDROID_SIGNING_KEYSTORE_BASE64 secret empty/missing"; exit 1; }
+
+      - name: Capacitor sync (copy web assets into Android project + apply config)
+        working-directory: apps/mobile
+        env:
+          CALENDARX_ANDROID_ORIGIN: ${{ secrets.CALENDARX_ANDROID_ORIGIN }}
+        run: |
+          CALENDARX_ANDROID_ORIGIN="${CALENDARX_ANDROID_ORIGIN:-${{ secrets.CALENDARX_ANDROID_ORIGIN }}}" \
+            pnpm exec cap sync android
+      - name: Build signed release APK
+        working-directory: apps/mobile/android
+        env:
+          SIGNING_KEYSTORE_FILE: "${{ github.workspace }}/.keystore/calendax.keystore"
+        run: |
+          ./gradlew \
+            -PversionCode=${{ steps.ver.outputs.version_code }} \
+            -PversionName=${{ steps.ver.outputs.version }} \
+            -PsigningStoreFile="$SIGNING_KEYSTORE_FILE" \
+            -PsigningStorePassword="${{ secrets.ANDROID_SIGNING_KEYSTORE_PASSWORD }}" \
+            -PsigningKeyAlias="${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}" \
+            -PsigningKeyPassword="${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}" \
+            assembleRelease
+
+      - name: Stage APK with predictable release name
+        run: |
+          APK="${{ github.workspace }}/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK" || { echo "::error::APK not produced"; exit 1; }
+          mkdir -p dist-apk
+          cp "$APK" "dist-apk/calendax-v${{ steps.ver.outputs.version }}.apk"
+          ls -la dist-apk/
+
+      - name: Create GitHub Release (if needed) and attach APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          TAG="v${VERSION}"
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendax.app). Sources: Git tags `v*` and manual workflow_dispatch."
+          APK="dist-apk/calendax-v${VERSION}.apk"
+          # gh release create auto-creates the tag at HEAD when it's missing
+          # (manual dispatch path with no tag pushed), so no git tag push here.
+          if gh release view "${TAG}" --repo xeroneon/calendax >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendax --clobber
+          else
+            gh release create "${TAG}" "${APK}" --repo xeroneon/calendax \
+              --title "CalendarX v${VERSION}" --notes "${NOTES}"
+          fi
+
+      - name: Mirror signed APK to public Obtainium channel (xeroneon/calendax-releases)
+        # The source repo (xeroneon/calendax) stays PRIVATE; GITHUB_TOKEN is scoped
+        # to THIS repo and cannot create releases elsewhere. A classic PAT with
+        # 'repo' scope (secret RELEASE_REPO_PAT) publishes the same signed APK to
+        # the public release-only channel xeroneon/calendax-releases, which Obtainium
+        # pulls from anonymously.
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_PAT }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          TAG="v${VERSION}"
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendax.app). Public obtainium channel; source stays private in xeroneon/calendax."
+          APK="dist-apk/calendax-v${VERSION}.apk"
+          if gh release view "${TAG}" --repo xeroneon/calendax-releases >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendax-releases --clobber
+          else
+            gh release create "${TAG}" "${APK}" --repo xeroneon/calendax-releases \
+              --title "CalendarX v${VERSION}" --notes "${NOTES}"
+          fi
