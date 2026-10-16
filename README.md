@@ -5,8 +5,10 @@ Android, distributed open-source.
 
 CalendarX does **not** re-host your data. It is a **CalDAV-generic client**: it
 connects to any standard CalDAV server — Nextcloud Calendar, Radicale, Baikal,
-iCloud — and puts that data behind a fast, opinionated, Linear-grade UI. Our own
-deployment keeps **Nextcloud Calendar** as the upstream backend.
+iCloud — and puts that data behind a fast, opinionated, Linear-grade UI. Our
+deployment runs **Radicale** as the upstream backend (per user preference 2026-10-16);
+Radicale is the seed/demo backend but never the only one — CalDAV-generic stays
+the contract.
 
 Seeded from the proven Xeroneon Cloud Phase 2 module (XER-78 RFC 5545 engine +
 XER-79 calendar/tasks UI), extracted and rebranded here rather than rebuilt from
@@ -37,11 +39,11 @@ pnpm dev                # web on :3102, server on :3101 (turbo)
 pnpm check              # lint + typecheck + test + build
 ```
 
-Point the server at an upstream CalDAV server (e.g. Nextcloud):
+Point the server at an upstream CalDAV server (default: Radicale):
 
 ```bash
 cd apps/server
-CALDAV_BASE_URL=https://user@nextcloud.local/remote.php/dav \
+CALDAV_BASE_URL=http://localhost:5232/ \
   CALDAV_USERNAME=... CALDAV_PASSWORD=... pnpm dev
 ```
 

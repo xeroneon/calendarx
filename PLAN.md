@@ -3,40 +3,40 @@
 **Project:** CalendarX (`calendar-tasks`, Calendar + Tasks)
 **Status:** Seed (C1) — design locked, repo stood up, follow-ons filed as backlog
 **Owner (this card):** Axel (frontend)
-**Date:** 2026-10-14
+**Date:** 2026-10-14 · **Decisions confirmed by user** 2026-10-16 (Q1-Q3)
 
 ## 1. What this is
 
 CalendarX is our own self-hosted, **CalDAV-generic CLIENT** calendar + tasks app
 (web + PWA + Android), distributed open-source. It does NOT re-host your data:
-it **connects to any standard CalDAV server** (Nextcloud Calendar, Radicale,
-Baikal, iCloud) and gives that data a fast, opinionated, Linear-grade UI.
+it **connects to any standard CalDAV server** (Radicale, Nextcloud, Baikal,
+iCloud) and gives that data a fast, opinionated, Linear-grade UI.
 
-A Card/C1 seed card: stand up the repo with the proven Phase 2 module extracted
-in and file the follow-on build cards. It is the extraction+scaffold, not the
-finished product.
+A C1 seed card: stand up the repo with the proven Phase 2 module extracted in and
+file the follow-on build cards. It is the extraction+scaffold, not the finished
+product.
 
-## 2. Design decisions (locked from XER-298 + XER-71 ground rules)
+## 2. Design decisions (locked — answers confirmed 2026-10-16)
 
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D1 | **Name:** CalendarX | User decision (XER-298) |
-| D2 | **Seed from existing Xeroneon Cloud Phase 2** (XER-78 RFC5545 engine + XER-79 calendar/tasks UI), extract+rebrand — **not** rebuilt from scratch | User decision; the engine + UI are proven and green on `~/cloud` |
-| D3 | **CalDAV-generic CLIENT** — works against ANY CalDAV server (Nextcloud, Radicale, Baikal, iCloud). Our own deployment uses Nextcloud Calendar as the backend | The app stores *connection config*, never the event store |
+| D2 | **Seed from existing Xeroneon Cloud Phase 2** (XER-78 RFC5545 engine + XER-79 calendar/tasks UI), extract+rebrand — **not** rebuilt from scratch | Proven + green on `~/cloud` |
+| D3 | **CalDAV-generic CLIENT** — works against ANY CalDAV server. Our deployment + seed backend = **Radicale** (open-source, per user Q2 2026-10-16). Nextcloud stays supported but is not our deploy default | Store *connection config*, never the event store |
 | D4 | **Stack:** TanStack (Start + Router + Query), pnpm + Turborepo monorepo, TypeScript | User default + XER-71 stack |
-| D5 | **Android:** Capacitor hybrid wrapper (XER-104 generalized wrapper) + signed release via XER-215 CI pattern, distributed via Obtainium | Reuse proven wrapper |
+| D5 | **Android:** Capacitor hybrid wrapper (XER-104) + signed release via XER-215 CI pattern, distributed via Obtainium. First-run connection is a **native** config shell (URL + Test + secure persist → load webview) | Reuse proven wrapper; native onboarding per user require |
 | D6 | **Repo:** NEW `calendax`, dual-origin (Gitea `Xeroneon/calendax` + GitHub `xeroneon/calendax`) | XER-63 convention |
-| D7 | **License:** TBD — recommend **AGPL-3.0** for a distributed OSS app whose value is a UI over user-owned data (keeps the "our own" open ethos, prevents closed-source forks from locking others out). Fallback MIT. → **Open question Q1** | surface to user |
-| D8 | **Design language:** Linear (near-black/crisp-white, indigo-violet accent, hairline borders, keyboard-first, Command-K) | carry over XER-74 design-system ground rule |
+| D7 | **License: AGPL-3.0** (user Q1 2026-10-16) — LICENSE added to repo | distributed OSS, keeps it open, deters closed forks |
+| D8 | **Design language:** Linear (near-black/crisp-white, indigo-violet accent, hairline borders, keyboard-first, Command-K) | carry over XER-74 ground rule |
 
 ## 3. Repository layout (`~/calendax`)
 
 ```
-calendax/                      (pnpm + Turborepo, TS)
+calendax/                      (pnpm + Turborepo, TS, AGPL-3.0)
 ├── apps/
 │   ├── web/                   TanStack Start web + PWA (calendar/tasks UI + CalDAV connection screen)
 │   ├── server/                thin API: stores CalDAV connection config + proxies to the upstream
-│   └── mobile/                Capacitor Android wrapper (hybrid, from XER-104)
+│   └── mobile/                Capacitor Android wrapper (hybrid, from XER-104) + native connect shell
 ├── packages/
 │   ├── calendar/              RFC 5545 engine — EVENTS+TASKS model, iCal parse/serialize,
 │   │                          recurrence expansion, IANA timezones   ← reused verbatim from XER-78
@@ -51,42 +51,41 @@ calendax/                      (pnpm + Turborepo, TS)
 
 ## 4. Extraction sources (`~/cloud`, all on `main`)
 
-- `packages/calendar` → `packages/calendar` (engine reuse is verbatim; package renamed `@xeroneon/calendar` → `@calendax/calendar`; zero external deps, standalone).
-- `apps/web/src/components/calendar/CalendarBrowser.tsx` + `apps/web/src/lib/calendar.ts` + `apps/web/src/server/calendar.ts` + route `apps/web/src/routes/calendar/index.tsx` → the web UI (XER-79).
-- `packages/ui` → `packages/ui` (design system, `@xeroneon/ui` → `@calendax/ui`, `--xc-*` → `--cx-*` tokens).
-- `packages/mobile-wrapper` → `packages/mobile-wrapper` (XER-104, already generalized) — add a `calendax` pre-baked example config.
+- `packages/calendar` → `packages/calendar` (engine reuse verbatim; renamed `@xeroneon/calendar` → `@calendax/calendar`; zero external deps).
+- `apps/web/src/.../CalendarBrowser.tsx` + `lib/calendar.ts` + `server/calendar.ts` + route `calendar/index.tsx` → the web UI (XER-79).
+- `packages/ui` → `packages/ui` (design system, `@xeroneon/ui` → `@calendax/ui`, `--xc-*` → `--cx-*`).
+- `packages/mobile-wrapper` → `packages/mobile-wrapper` (XER-104, already generalized) + a `calendax` pre-baked example config.
 - `.github/workflows/release-android.yml` → the XER-215 release CI pattern.
 - `apps/web/src/lib/auth-call.ts` + `apps/web/src/server/api.ts` pattern → CalDAV connection/auth proxy.
 
-## 5. Gap analysis → follows-on (the real build work)
-
-The seed extracts and scaffolds; these cards do the product. Filed as backlog on the
-CalendarX project (XER-303 §6 → XER-305..XER-309).
+## 5. Gap analysis → follow-ons (filed XER-305..XER-312, all parked at backlog)
 
 | Card | Scope | Dependency |
 |------|-------|-----------|
-| **CalDAV client hardening** | multi-server coverage (Nextcloud/Radicale/Baikal/iCloud), auth (Basic/Digest/app-password + OAuth for iCloud), timezone edge cases, pagination/etags | seed `packages/caldav` |
-| **Calendar UI** | month/week/day views, recurrence editing, event create/edit dialog (CalendarBrowser seed exists) | CalDAV client |
-| **Tasks UI** | VTODO list, completion model, due/percent-complete (engine supports already) | CalDAV client |
-| **Android wrap** | run XER-104 wrapper generator for calendax, commit android/, wire origin | web app |
-| **Release / distribution CI** | release-android.yml wired to GitHub Release + Obtainium channel + app signing secrets | Android wrap |
-| **Connection/settings screen** | first-run "add your CalDAV server" (URL + credentials), test-connection | CalDAV client |
-| **License selection** | add LICENSE + headers after Q1 | any (wait on Q1) |
+| **XER-305 CalDAV client hardening** | multi-server coverage (Radicale primary/Nextcloud/Baikal/iCloud), auth (Basic/Digest/app-password + OAuth iCloud), timezone edges, pagination/etags | seed `packages/caldav` |
+| **XER-306 Calendar UI** | month/week/day views, recurrence editing, event create/edit (CalendarBrowser seed exists) | CalDAV client |
+| **XER-307 Tasks UI** | VTODO list, completion model, due/percent-complete (engine supports) | CalDAV client |
+| **XER-308 Android wrap** | run XER-104 generator, commit android/, wire origin | web app |
+| **XER-309 Release / distribution CI** | release-android.yml wired to GH Release + Obtainium + signing secrets | Android wrap |
+| **XER-310 Connection/settings screen** | first-run "add your CalDAV server" (URL + creds), test-connection | CalDAV client |
+| **XER-311 (n/a)** | — | — |
+| **XER-312 Android native connect onboarding** | native (Kotlin) config shell: server URL, Test connection (health/CalDAV discovery), secure persist (Keystore), then load webview. .well-known/caldav discovery; optional demo instance. Full native (Compose, no webview) UI = later phase, deliberately NOT a blocker | Android wrap |
+
+**Kick-off is GATED** (user Q3 2026-10-16): "we will wait until we get the plan
+fully in order." No follow-on card may be dispatched until the user says go. The
+GATED clause is in each card's description.
 
 ## 6. This card's deliverable (done)
 
-- ✅ Plan doc (this artifact, page-visible) locking stack/scope/repo.
-- ✅ New dual-origin repo `calendax` stood up with Phase 2 code extracted in
-  (RFC5545 engine, UI, design system, mobile wrapper, release-CI pattern).
-- ✅ Follow-on card set filed as backlog (XER-305..).
-- ⏳ Open question posted for the user.
+- ✅ Plan doc (this artifact, page-visible) locking stack/scope/repo/**license**/**Android-connect**.
+- ✅ New dual-origin repo `calendax` stood up with Phase 2 code extracted in.
+- ✅ AGPL-3.0 LICENSE added (Q1 confirmed).
+- ✅ Backend default updated to Radicale (Q2 confirmed; CalDAV-generic preserves the others).
+- ✅ Follow-on card set filed as backlog (XER-305..XER-312).
+- ✅ Questions answered by user; kick-off deferred per Q3.
 
-## 7. Questions for you
+## 7. Questions (resolved 2026-10-16)
 
-- **Q1 (License):** AGPL-3.0 recommended (open ethos, protects user-owned data +
-  deters closed-source forks). MIT is the lighter default. Which?
-- **Q2 (Backend for the seed's own deploy):** confirmed Nextcloud Calendar as the
-  local backend (per issue). Any server you specifically want validated first?
-- **Q3 (Scope of C1):** this card stands up repo + extraction + backlog. The five
-  build cards are parked at backlog so the tree stays quiet — "kick off" when you
-  want the first (CalDAV client) dispatched.
+- **Q1 (License):** ✅ **AGPL-3.0** — user confirmed.
+- **Q2 (Backend):** ✅ **Radicale** (open) for our deploy/seed; Nextcloud remains supported (CalDAV-generic). User answered "something open like radicale".
+- **Q3 (Kick-off):** ✅ Deferred — "we will wait until we get the plan fully in order." No dispatch yet.

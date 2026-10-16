@@ -8,7 +8,8 @@
  * domain model from `@calendax/calendar`. Web hooks for the connection screen
  * live at `/api/connections`; the calendar surface at `/api/calendar`.
  *
- * SEED SCOPE: a single in-memory connection (the app's own Nextcloud backend).
+ * SEED SCOPE: a single in-memory connection (Radicale is the seed/deploy default
+ * backend; CalDAV-generic — works with Nextcloud/Radicale/Baikal/iCloud too).
  * Multi-connection + per-connection persistence is the settings follow-on card.
  */
 
@@ -34,7 +35,7 @@ interface StoredConnection {
 
 let connection: StoredConnection | null = null
 
-/** Seed default: the app's own Nextcloud Calendar backend (env-configured). */
+/** Seed default: the app's own Radicale backend (env-configured). */
 export function defaultConnection(): StoredConnection | null {
   const env = process.env.CALDAV_BASE_URL
   if (!env) return null
@@ -42,7 +43,7 @@ export function defaultConnection(): StoredConnection | null {
     id: 'default',
     name: process.env.CALDAV_NAME ?? 'Home Calendar',
     principalUrl: env,
-    auth: (process.env.CALDAV_AUTH as CalDavAuth) ?? 'app-password',
+    auth: (process.env.CALDAV_AUTH as CalDavAuth) ?? 'basic',
     username: process.env.CALDAV_USERNAME,
     password: process.env.CALDAV_PASSWORD,
     verified: false,
