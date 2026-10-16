@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.ver.outputs.version }}"
           TAG="v${VERSION}"
-          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Sources: Git tags `v*` and manual workflow_dispatch."
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Sources: Git tags v* (e.g. v0.1.0) and manual workflow_dispatch."
           APK="dist-apk/calendarx-v${VERSION}.apk"
           # gh release create auto-creates the tag at HEAD when it's missing
           # (manual dispatch path with no tag pushed), so no git tag push here.
