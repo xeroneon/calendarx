@@ -132,3 +132,91 @@ body {
   display: flex;
   gap: 0.5rem;
 }
+
+/* ── Connection / settings screen (XER-310) ───────────────────────────── */
+.cl-connect-wrap {
+  max-width: 560px;
+  margin: 6vh auto;
+}
+
+.cl-connect-card {
+  width: 100%;
+}
+
+.cl-connect-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cl-field-hint {
+  margin-top: 0.35rem;
+  font-size: var(--cx-text-sm);
+}
+
+.cl-connect-feedback {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--cx-radius-md);
+  font-size: var(--cx-text-sm);
+  line-height: var(--cx-lh-sm);
+}
+
+.cl-connect-feedback.ok {
+  background: var(--cx-accent-50);
+  color: var(--cx-accent-800);
+  border: 1px solid var(--cx-accent-200);
+}
+
+.cl-connect-feedback.err {
+  background: color-mix(in srgb, var(--cx-danger) 10%, transparent);
+  color: var(--cx-danger);
+  border: 1px solid color-mix(in srgb, var(--cx-danger) 35%, transparent);
+}
+
+.cl-connect-footer-left,
+.cl-connect-footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-sp-3);
+}
+
+.cl-conn-row {
+  padding: var(--cx-sp-2) 0;
+}
+
+.cl-conn-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-sp-2);
+  font-weight: var(--cx-weight-medium);
+}
+
+.cl-badge {
+  font-size: var(--cx-text-xs);
+  font-weight: var(--cx-weight-medium);
+  color: var(--cx-accent-700);
+  background: var(--cx-accent-50);
+  border: 1px solid var(--cx-accent-200);
+  border-radius: var(--cx-radius-full);
+  padding: 1px 8px;
+}
+
+.cl-conn-row-sub {
+  margin-top: 2px;
+  font-size: var(--cx-text-sm);
+  color: var(--cx-text-muted);
+  word-break: break-all;
+}
+
+.cl-connect-saved-title {
+  font-weight: var(--cx-weight-medium);
+  margin-bottom: var(--cx-sp-2);
+}
+
+.cl-connect-cals {
+  margin: 0 0 var(--cx-sp-3);
+  padding-left: var(--cx-sp-5);
+  color: var(--cx-text);
+  font-size: var(--cx-text-md);
+}

@@ -90,13 +90,20 @@ connectionRouter.get('/', (_req: Request, res: Response) => {
 
 /** POST /api/connections/test — probe a CalDAV URL (never stored). */
 connectionRouter.post('/test', async (req: Request, res: Response) => {
-  const body = req.body as { url?: string; auth?: CalDavAuth }
-  const url = body.url
+  const body = req.body as { url?: string; auth?: CalDavAuth; username?: string; password?: string }
+  const { url } = body
   if (!url) {
     res.status(400).json({ ok: false, error: { code: 'missing_url', message: 'url is required' } })
     return
   }
-  const probe = new CalDavClient({ baseUrl: url, auth: body.auth ?? 'basic' })
+  // Probe with the candidate credentials so a server that requires auth can be
+  // validated on this screen; the probe result itself is never persisted.
+  const probe = new CalDavClient({
+    baseUrl: url,
+    auth: body.auth ?? 'basic',
+    username: body.username,
+    password: body.password,
+  })
   const result = await probe.probe()
   res.json({ ok: true, data: result })
 })

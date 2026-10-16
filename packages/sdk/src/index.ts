@@ -168,13 +168,41 @@ export class ConnectionClient {
   }
 
   /** Probe a CalDAV principal URL (PROPFIND) — does it speak CalDAV? */
-  testConnection(url: string, auth: 'basic' | 'app-password' | 'oauth'): Promise<{ ok: boolean; calendars?: string[] }> {
+  testConnection(input: TestConnectionInput): Promise<{ ok: boolean; principal?: string; calendars?: string[] }> {
     return this.client.call('/api/connections/test', {
       method: 'POST',
       headers: jsonHeaders(),
-      body: JSON.stringify({ url, auth }),
+      body: JSON.stringify(input),
     })
   }
+
+  /** Save the active CalDAV connection (the server stores it, never the browser). */
+  saveConnection(input: SaveConnectionInput): Promise<{ connection: CalDavConnection }> {
+    return this.client.call('/api/connections', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(input),
+    })
+  }
+}
+
+/** Inputs for a live probe of a candidate CalDAV principal URL. */
+export interface TestConnectionInput {
+  url: string
+  auth: 'basic' | 'app-password' | 'oauth'
+  username?: string
+  password?: string
+}
+
+/** Inputs to persist a CalDAV connection on the server. */
+export interface SaveConnectionInput {
+  /** Human label, e.g. "Home Nextcloud". */
+  name?: string
+  /** CalDAV principal URL, e.g. https://nextcloud.dev/remote.php/dav. */
+  principalUrl: string
+  auth: 'basic' | 'app-password' | 'oauth'
+  username?: string
+  password?: string
 }
 
 /**

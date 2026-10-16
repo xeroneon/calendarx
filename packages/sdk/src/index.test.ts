@@ -52,4 +52,22 @@ describe('@calendarx/sdk', () => {
     })
     await expect(c.calendar.createItem('main', item)).resolves.toEqual({ item })
   })
+
+  it('saves a CalDAV connection via connections.saveConnection', async () => {
+    const connection = {
+      id: 'conn_1',
+      name: 'Home',
+      principalUrl: 'https://nextcloud.dev/remote.php/dav',
+      auth: 'app-password' as const,
+      verified: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    }
+    const c = new CalendaxClient({
+      baseUrl: 'http://localhost:3000',
+      fetchImpl: fakeFetch(201, { ok: true, data: { connection } }),
+    })
+    await expect(
+      c.connections.saveConnection({ principalUrl: connection.principalUrl, auth: 'app-password', username: 'u', password: 'p' }),
+    ).resolves.toEqual({ connection })
+  })
 })

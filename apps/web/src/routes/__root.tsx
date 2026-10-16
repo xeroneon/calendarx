@@ -39,6 +39,9 @@ export const Route = createRootRouteWithContext<{
           <Link to="/calendar" className="cl-brandlink">
             Calendar
           </Link>
+          <Link to="/connect" className="cl-brandlink">
+            Connection
+          </Link>
         </nav>
       </header>
       <main className="cl-main">

@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as CalendarIndexRouteImport } from './routes/calendar/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarIndexRoute = CalendarIndexRouteImport.update({
@@ -25,27 +31,31 @@ const CalendarIndexRoute = CalendarIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/connect': typeof ConnectRoute
   '/calendar/': typeof CalendarIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/connect': typeof ConnectRoute
   '/calendar': typeof CalendarIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/connect': typeof ConnectRoute
   '/calendar/': typeof CalendarIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calendar/'
+  fullPaths: '/' | '/connect' | '/calendar/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calendar'
-  id: '__root__' | '/' | '/calendar/'
+  to: '/' | '/connect' | '/calendar'
+  id: '__root__' | '/' | '/connect' | '/calendar/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConnectRoute: typeof ConnectRoute
   CalendarIndexRoute: typeof CalendarIndexRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConnectRoute: ConnectRoute,
   CalendarIndexRoute: CalendarIndexRoute,
 }
 export const routeTree = rootRouteImport
