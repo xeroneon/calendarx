@@ -162,16 +162,28 @@ export class CalDavClient {
     return this.config.baseUrl.replace(/\/$/, '')
   }
 
-  /** Absolute URL for a DAV path/href (handles relative + absolute hrefs). */
+  /** Absolute URL for a DAV path/href (handles relative + absolute + root-relative hrefs). */
   private urlFor(href: string): string {
     if (/^https?:\/\//i.test(href)) return href
+    if (href.startsWith('/')) return this.resolveHref(href)
     return `${this.baseUrl}/${href.replace(/^\//, '')}`
   }
 
-  /** Resolve a calendar-home-set href relative to the base, keeping it usable. */
+  /** Resolve a DAV href to an absolute URL against the base URL's origin. */
   private resolveHref(href: string): string {
     if (!href) return ''
     if (/^https?:\/\//i.test(href)) return href
+    if (href.startsWith('/')) {
+      // Root-relative to the host+base: strip any path from baseUrl.
+      try {
+        const u = new URL(this.baseUrl)
+        u.pathname = ''
+        return `${u.origin}${href}`
+      } catch {
+        return href
+      }
+    }
+    // Relative path under baseUrl.
     return `${this.baseUrl}/${href.replace(/^\//, '')}`
   }
 
@@ -215,19 +227,38 @@ export class CalDavClient {
       '  <d:prop>',
       '    <d:current-user-principal />',
       '    <d:principal-URL />',
-      '    <c:calendar-home-set />',
       '  </d:prop>',
       '</d:propfind>',
     ].join('\n')
     const res = await this.request('PROPFIND', this.urlFor(path), this.headers({ 'Content-Type': 'application/xml', Depth: '0' }), body)
     if (res.status >= 400) this.throwDav('principal discovery failed', res.status, res.body)
-    // calendar-home-set href (can be absolute or relative to the server root).
-    const home = readTagStrict(res.body, 'calendar-home-set', 'href')
-    if (home) return this.resolveHref(home)
-    // Fall back to the principal-URL href if the server omitted calendar-home-set.
-    const prinUrl = readTagStrict(res.body, 'principal-URL', 'href') ?? readTagStrict(res.body, 'current-user-principal', 'href')
-    if (prinUrl) return this.resolveHref(prinUrl)
-    return this.urlFor(path)
+
+    // Locate the principal resource (current-user-principal preferred).
+    const principal = readTagStrict(res.body, 'current-user-principal', 'href')
+      ?? readTagStrict(res.body, 'principal-URL', 'href')
+      ?? path
+    if (!principal) return this.urlFor(path)
+
+    // Two-step RFC 4791 discovery: PROPFIND the principal resource itself to
+    // get its calendar-home-set. Some servers (Nextcloud) return the home-set
+    // here rather than on the calendars collection PROPFIND.
+    const homeBody = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      `<d:propfind ${NS}>`,
+      '  <d:prop>',
+      '    <c:calendar-home-set />',
+      '  </d:prop>',
+      '</d:propfind>',
+    ].join('\n')
+    const homeRes = await this.request('PROPFIND', this.resolveHref(principal), this.headers({ 'Content-Type': 'application/xml', Depth: '0' }), homeBody)
+    if (homeRes.status < 400) {
+      const home = readTagStrict(homeRes.body, 'calendar-home-set', 'href')
+      if (home) return this.resolveHref(home)
+    }
+    // Fall back: an (absolute or relative) home-set href returned on the
+    // original request, then the principal itself.
+    const home2 = readTagStrict(res.body, 'calendar-home-set', 'href')
+    return home2 ? this.resolveHref(home2) : this.resolveHref(principal)
   }
 
   /** List calendar collections under the user's calendar-home-set. */
@@ -269,11 +300,14 @@ export class CalDavClient {
 
   /** Calendar-query REPORT: events+tasks over a UTC window (or all if no range). */
   async queryItems(href: string, rangeStartUtc?: number, rangeEndUtc?: number): Promise<CalendarItem[]> {
-    const filter = rangeStartUtc !== undefined
-      ? xmlTag('c:comp-filter', { name: 'VCALENDAR' },
-          xmlTag('c:comp-filter', { name: 'VEVENT' },
-            xmlTag('c:time-range', { start: isoIcsTime(rangeStartUtc), end: isoIcsTime(rangeEndUtc ?? rangeStartUtc + 1) })))
-      : ''
+    // Always emit a <c:filter> wrapper — Nextcloud rejects a REPORT without one
+    // (400 "filter element is required").
+    let compBody = ''
+    if (rangeStartUtc !== undefined) {
+      compBody = xmlTag('c:comp-filter', { name: 'VEVENT' },
+        xmlTag('c:time-range', { start: isoIcsTime(rangeStartUtc), end: isoIcsTime(rangeEndUtc ?? rangeStartUtc + 1) }))
+    }
+    const filter = xmlTag('c:comp-filter', { name: 'VCALENDAR' }, compBody)
     const body = [
       '<?xml version="1.0" encoding="utf-8"?>',
       `<c:calendar-query ${NS}>`,
@@ -282,7 +316,7 @@ export class CalDavClient {
       '    <d:getcontenttype />',
       '    <c:calendar-data />',
       '  </d:prop>',
-      filter,
+      `  <c:filter>${filter}</c:filter>`,
       '</c:calendar-query>',
     ].join('\n')
     const res = await this.request('REPORT', this.urlFor(href), this.headers({ 'Content-Type': 'application/xml', Depth: '1' }), body)

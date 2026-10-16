@@ -119,6 +119,62 @@ const HOME_SET_NEXTCLOUD = `<?xml version="1.0"?>
   </d:response>
 </d:multistatus>`
 
+/** Home-set returned when the principal resource itself is PROPFINDed (Nextcloud). */
+const HOME_SET_ON_PRINCIPAL = `<?xml version="1.0"?>
+<d:multistatus ${NODENAME}>
+  <d:response>
+    <d:href>/remote.php/dav/principals/axel/</d:href>
+    <d:propstat>
+      <d:prop>
+        <c:calendar-home-set><d:href>/remote.php/dav/calendars/axel/</d:href></c:calendar-home-set>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`
+
+/** Radicale: principal resource home-set (default namespace). */
+const HOME_SET_ON_PRINCIPAL_RADICALE = `<?xml version="1.0"?>
+<multistatus xmlns="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <response>
+    <href>/radicale/axel/</href>
+    <propstat>
+      <prop>
+        <c:calendar-home-set><href>/radicale/axel/</href></c:calendar-home-set>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>`
+
+/** Baikal: principal resource home-set (d:/cal: prefixes). */
+const HOME_SET_ON_PRINCIPAL_BAIKAL = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/cal.php/principals/axel/</d:href>
+    <d:propstat>
+      <d:prop>
+        <c:calendar-home-set><d:href>/cal.php/calendars/axel/</d:href></c:calendar-home-set>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`
+
+/** iCloud: principal resource home-set (default namespace). */
+const HOME_SET_ON_PRINCIPAL_ICLOUD = `<?xml version="1.0"?>
+<multistatus xmlns="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <response>
+    <href>/webdav/axel/</href>
+    <propstat>
+      <prop>
+        <c:calendar-home-set><href>/webdav/axel/</href></c:calendar-home-set>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>`
+
 /** Radicale: default namespace on home-set discovery, relative href. */
 const HOME_SET_RADICALE = `<?xml version="1.0"?>
 <multistatus xmlns="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -210,6 +266,7 @@ describe('@calendarx/caldav', () => {
   it('discovers calendars (Nextcloud prefixes) with VEVENT/VTODO support', async () => {
     const fetchImpl = fakeDav([
       { method: 'PROPFIND', url: '/remote.php/dav/calendars/', status: 207, body: HOME_SET_NEXTCLOUD },
+      { method: 'PROPFIND', url: '/remote.php/dav/principals/axel/', status: 207, body: HOME_SET_ON_PRINCIPAL },
       { method: 'PROPFIND', url: '/remote.php/dav/calendars/axel/', status: 207, body: NEXTCLOUD_MAIN },
     ])
     const client = new CalDavClient(
@@ -228,6 +285,7 @@ describe('@calendarx/caldav', () => {
   it('parses Radicale default-namespace responses (no d:/c: prefixes)', async () => {
     const fetchImpl = fakeDav([
       { method: 'PROPFIND', url: '/auth-and-home/', status: 207, body: HOME_SET_RADICALE },
+      { method: 'PROPFIND', url: '/radicale/axel/', status: 207, body: HOME_SET_ON_PRINCIPAL_RADICALE },
       { method: 'PROPFIND', url: '/radicale/axel/', status: 207, body: RADICALE_MAIN },
     ])
     const client = new CalDavClient(
@@ -245,6 +303,7 @@ describe('@calendarx/caldav', () => {
   it('parses iCloud uppercase-prefix responses', async () => {
     const fetchImpl = fakeDav([
       { method: 'PROPFIND', url: '/webdav/axel/', status: 207, body: HOME_SET_ICLOUD },
+      { method: 'PROPFIND', url: '/webdav/axel/', status: 207, body: HOME_SET_ON_PRINCIPAL_ICLOUD },
       { method: 'PROPFIND', url: '/webdav/axel/', status: 207, body: ICLOUD_MAIN },
     ])
     const client = new CalDavClient(
@@ -261,6 +320,7 @@ describe('@calendarx/caldav', () => {
   it('parses Baikal cal: prefix responses', async () => {
     const fetchImpl = fakeDav([
       { method: 'PROPFIND', url: '/dav/calendars/axel/', status: 207, body: HOME_SET_BAIKAL },
+      { method: 'PROPFIND', url: '/cal.php/principals/axel/', status: 207, body: HOME_SET_ON_PRINCIPAL_BAIKAL },
       { method: 'PROPFIND', url: '/cal.php/calendars/axel/', status: 207, body: BAIKAL_MAIN },
     ])
     const client = new CalDavClient(
@@ -299,6 +359,35 @@ describe('@calendarx/caldav', () => {
     expect(items).toHaveLength(1)
     expect(items[0]?.kind).toBe('event')
     expect(items[0]?.summary).toBe('Standup')
+  })
+
+  it('emits a c:filter wrapper on every calendar-query REPORT (Nextcloud requires it)', async () => {
+    const bodies: string[] = []
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body ?? ''))
+      return new Response('<?xml version="1.0"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"/>', { status: 207 })
+    }) as typeof fetch
+    const client = new CalDavClient(
+      { baseUrl: 'https://nextcloud/remote.php/dav', auth: 'basic', username: 'axel', password: 'pw' },
+      { fetchImpl },
+    )
+    await client.queryItems('/remote.php/dav/calendars/axel/main/')
+    expect(bodies[0]).toContain('<c:filter>')
+    expect(bodies[0]).toMatch(/<c:comp-filter name="VCALENDAR"[^>]*>|<c:comp-filter name="VCALENDAR"\/>/)
+  })
+
+  it('resolves root-relative object hrefs against the base origin (no double base)', async () => {
+    let lastUrl = ''
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      lastUrl = String(input)
+      return new Response('BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//x//x//EN\r\nBEGIN:VEVENT\r\nUID:u\r\nSUMMARY:s\r\nDTSTART:20260302T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR', { status: 200 })
+    }) as typeof fetch
+    const client = new CalDavClient(
+      { baseUrl: 'https://nextcloud/remote.php/dav', auth: 'basic', username: 'axel', password: 'pw' },
+      { fetchImpl },
+    )
+    await client.getItem('/remote.php/dav/calendars/axel/main/u.ics')
+    expect(lastUrl).toBe('https://nextcloud/remote.php/dav/calendars/axel/main/u.ics')
   })
 
   it('creates a calendar via MKCALENDAR', async () => {
