@@ -1,5 +1,5 @@
 {
-  "name": "@calendax/calendar",
+  "name": "@calendarx/calendar",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
-    "@calendax/types": "workspace:*",
+    "@calendarx/types": "workspace:*",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.2",
     "@typescript/native": "npm:typescript@^7.0.2"

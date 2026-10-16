@@ -1,14 +1,14 @@
 import * as React from 'react'
 
 /**
- * @calendax/ui — Icon
+ * @calendarx/ui — Icon
  *
  * A tiny set of Linear-flavoured glyphs used across modules. Icons are drawn
  * from a 16-unit viewBox and fill with `currentColor`, so the surrounding
  * CSS (e.g. a `.fs-folder` color rule) tints them. Decorative by default —
  * pass `ariaLabel` when the icon carries meaning on its own.
  *
- *   import { Icon } from '@calendax/ui'
+ *   import { Icon } from '@calendarx/ui'
  *   <Icon name="folder" />       // indigo via .fs-folder { color: ... }
  *   <Icon name="file" size={18} />
  *   <Icon name="markdown" ariaLabel="Markdown document" />

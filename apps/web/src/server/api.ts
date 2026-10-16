@@ -5,7 +5,7 @@
  * does. Each server-fn builds a `CalendaxClient` targeting `CALENDARX_API_URL`
  * (the local proxying server) so the UI talks CalDAV through one seam.
  */
-import { CalendaxClient, type CalendaxClientOptions } from '@calendax/sdk'
+import { CalendaxClient, type CalendaxClientOptions } from '@calendarx/sdk'
 
 const base = process.env.CALENDARX_API_URL ?? 'http://localhost:3101'
 

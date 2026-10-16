@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Checkbox, CommandMenu, Dialog, Kbd, Select, useDialog } from '@calendax/ui'
-import type { CalendarItem, CalTime, CalendarTask, Occurrence } from '@calendax/sdk'
+import { Button, Checkbox, CommandMenu, Dialog, Kbd, Select, useDialog } from '@calendarx/ui'
+import type { CalendarItem, CalTime, CalendarTask, Occurrence } from '@calendarx/sdk'
 import { createItem, deleteItem, expand, listCalendars, listItems, updateItem, DEFAULT_CAL_KEY } from '~/server/calendar'
 import { authCall } from '~/lib/auth-call'
 import {

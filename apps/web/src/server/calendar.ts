@@ -4,7 +4,7 @@
  * web server and calls the typed SDK client, exactly like the cloud original.
  */
 import { createServerFn } from '@tanstack/react-start'
-import type { CalendarCollection, CalendarEvent, CalendarItem, CalendarTask, Occurrence } from '@calendax/sdk'
+import type { CalendarCollection, CalendarEvent, CalendarItem, CalendarTask, Occurrence } from '@calendarx/sdk'
 import { clientFor } from './api'
 
 export const DEFAULT_CAL_KEY = 'main'

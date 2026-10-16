@@ -30,7 +30,7 @@ export interface MobileWrapperConfig {
   /**
    * Shell command that builds the web client (Capacitor's webDir target) AND any
    * upstream workspace deps it needs. Monorepo: wrap in quotes, e.g.
-   * `pnpm --filter "@calendax/web..." build` (the `...` includes upstream
+   * `pnpm --filter "@calendarx/web..." build` (the `...` includes upstream
    * workspaces). Single-app: e.g. `npm run build` or `pnpm build`.
    */
   buildWebCommand: string
@@ -67,7 +67,7 @@ export const CLOUD_EXAMPLE: MobileWrapperConfig = {
   webDir: '../../apps/web/dist/client',
   originEnv: 'CLOUD_ANDROID_ORIGIN',
   defaultOrigin: 'https://cloud.xeroneon.dev',
-  buildWebCommand: 'pnpm --filter "@calendax/web..." build',
+  buildWebCommand: 'pnpm --filter "@calendarx/web..." build',
   installCommand: 'pnpm install --frozen-lockfile',
   apkPrefix: 'xeroneon-cloud',
   sourceRepo: 'xeroneon/cloud',
@@ -98,20 +98,20 @@ export const MTG_FREE_EXAMPLE: MobileWrapperConfig = {
  * Pre-baked CalendarX config (XER-303): the CalendarX web app wrapped for
  * Android. `apps/web` builds its client to `dist/client` (Capacitor webDir);
  * the origin env is baked at `cap sync` from `CALENDARX_ANDROID_ORIGIN`
- * (default `https://calendax.xeroneon.dev`).
+ * (default `https://calendarx.xeroneon.dev`).
  */
 export const CALENDARX_EXAMPLE: MobileWrapperConfig = {
-  appId: 'dev.calendax.app',
+  appId: 'dev.calendarx.app',
   appName: 'CalendarX',
   shape: 'monorepo',
   webDir: '../../apps/web/dist/client',
   originEnv: 'CALENDARX_ANDROID_ORIGIN',
-  defaultOrigin: 'https://calendax.xeroneon.dev',
-  buildWebCommand: 'pnpm --filter "@calendax/web..." build',
+  defaultOrigin: 'https://calendarx.xeroneon.dev',
+  buildWebCommand: 'pnpm --filter "@calendarx/web..." build',
   installCommand: 'pnpm install --frozen-lockfile',
-  apkPrefix: 'calendax',
-  sourceRepo: 'xeroneon/calendax',
-  publicReleaseRepo: 'xeroneon/calendax-releases',
+  apkPrefix: 'calendarx',
+  sourceRepo: 'xeroneon/calendarx',
+  publicReleaseRepo: 'xeroneon/calendarx-releases',
   wrapperDir: 'apps/mobile',
   versionPkgJson: './apps/web/package.json',
   capSyncDir: 'apps/mobile',

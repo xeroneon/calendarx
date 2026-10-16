@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HealthStatus } from '@calendax/types'
-import type { CalendarEvent } from '@calendax/calendar'
+import type { HealthStatus } from '@calendarx/types'
+import type { CalendarEvent } from '@calendarx/calendar'
 import { CalendaxClient } from './index.js'
 
 function fakeFetch(status: number, body: unknown): typeof fetch {
@@ -8,7 +8,7 @@ function fakeFetch(status: number, body: unknown): typeof fetch {
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })) as typeof fetch
 }
 
-describe('@calendax/sdk', () => {
+describe('@calendarx/sdk', () => {
   it('normalizes a trailing slash on baseUrl', () => {
     const c = new CalendaxClient({
       baseUrl: 'http://localhost:3000/',

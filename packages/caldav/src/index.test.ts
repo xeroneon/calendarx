@@ -42,14 +42,14 @@ const CALENDAR_QUERY = `<?xml version="1.0"?>
     <d:propstat>
       <d:prop>
         <d:getetag>"e1"</d:getetag>
-        <c:calendar-data>BEGIN:VCALENDAR&#13;&#10;VERSION:2.0&#13;&#10;PRODID:-//calendax//ical//EN&#13;&#10;BEGIN:VEVENT&#13;&#10;UID:evt1&#13;&#10;SUMMARY:Standup&#13;&#10;DTSTART:20260302T090000Z&#13;&#10;END:VEVENT&#13;&#10;END:VCALENDAR&#13;&#10;</c:calendar-data>
+        <c:calendar-data>BEGIN:VCALENDAR&#13;&#10;VERSION:2.0&#13;&#10;PRODID:-//calendarx//ical//EN&#13;&#10;BEGIN:VEVENT&#13;&#10;UID:evt1&#13;&#10;SUMMARY:Standup&#13;&#10;DTSTART:20260302T090000Z&#13;&#10;END:VEVENT&#13;&#10;END:VCALENDAR&#13;&#10;</c:calendar-data>
       </d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>
     </d:propstat>
   </d:response>
 </d:multistatus>`
 
-describe('@calendax/caldav', () => {
+describe('@calendarx/caldav', () => {
   it('discovers calendars from a principal and reports VEVENT/VTODO support', async () => {
     const fetchImpl = fakeDav([
       { method: 'PROPFIND', url: '/remote.php/dav/calendars/', status: 207, body: CALENDAR_XML },

@@ -2,7 +2,7 @@ name: Android Release (signed APK -> GitHub Release)
 
 on:
   push:
-    # Release tags drive versioning: v0.1.0 -> calendax-v0.1.0.apk
+    # Release tags drive versioning: v0.1.0 -> calendarx-v0.1.0.apk
     tags:
       - 'v*'
   workflow_dispatch:
@@ -64,7 +64,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build web client (Capacitor webDir) + workspace deps
-        run: pnpm --filter "@calendax/web..." build
+        run: pnpm --filter "@calendarx/web..." build
       - name: Determine release version
         id: ver
         run: |
@@ -85,8 +85,8 @@ jobs:
       - name: Decode signing keystore from CI secret (never committed)
         run: |
           mkdir -p .keystore
-          echo "${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}" | base64 -d > .keystore/calendax.keystore
-          test -s .keystore/calendax.keystore || { echo "::error::ANDROID_SIGNING_KEYSTORE_BASE64 secret empty/missing"; exit 1; }
+          echo "${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}" | base64 -d > .keystore/calendarx.keystore
+          test -s .keystore/calendarx.keystore || { echo "::error::ANDROID_SIGNING_KEYSTORE_BASE64 secret empty/missing"; exit 1; }
 
       - name: Capacitor sync (copy web assets into Android project + apply config)
         working-directory: apps/mobile
@@ -98,7 +98,7 @@ jobs:
       - name: Build signed release APK
         working-directory: apps/mobile/android
         env:
-          SIGNING_KEYSTORE_FILE: "${{ github.workspace }}/.keystore/calendax.keystore"
+          SIGNING_KEYSTORE_FILE: "${{ github.workspace }}/.keystore/calendarx.keystore"
         run: |
           ./gradlew \
             -PversionCode=${{ steps.ver.outputs.version_code }} \
@@ -114,7 +114,7 @@ jobs:
           APK="${{ github.workspace }}/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
           test -f "$APK" || { echo "::error::APK not produced"; exit 1; }
           mkdir -p dist-apk
-          cp "$APK" "dist-apk/calendax-v${{ steps.ver.outputs.version }}.apk"
+          cp "$APK" "dist-apk/calendarx-v${{ steps.ver.outputs.version }}.apk"
           ls -la dist-apk/
 
       - name: Create GitHub Release (if needed) and attach APK
@@ -124,22 +124,22 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.ver.outputs.version }}"
           TAG="v${VERSION}"
-          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendax.app). Sources: Git tags `v*` and manual workflow_dispatch."
-          APK="dist-apk/calendax-v${VERSION}.apk"
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Sources: Git tags `v*` and manual workflow_dispatch."
+          APK="dist-apk/calendarx-v${VERSION}.apk"
           # gh release create auto-creates the tag at HEAD when it's missing
           # (manual dispatch path with no tag pushed), so no git tag push here.
-          if gh release view "${TAG}" --repo xeroneon/calendax >/dev/null 2>&1; then
-            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendax --clobber
+          if gh release view "${TAG}" --repo xeroneon/calendarx >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendarx --clobber
           else
-            gh release create "${TAG}" "${APK}" --repo xeroneon/calendax \
+            gh release create "${TAG}" "${APK}" --repo xeroneon/calendarx \
               --title "CalendarX v${VERSION}" --notes "${NOTES}"
           fi
 
-      - name: Mirror signed APK to public Obtainium channel (xeroneon/calendax-releases)
-        # The source repo (xeroneon/calendax) stays PRIVATE; GITHUB_TOKEN is scoped
+      - name: Mirror signed APK to public Obtainium channel (xeroneon/calendarx-releases)
+        # The source repo (xeroneon/calendarx) stays PRIVATE; GITHUB_TOKEN is scoped
         # to THIS repo and cannot create releases elsewhere. A classic PAT with
         # 'repo' scope (secret RELEASE_REPO_PAT) publishes the same signed APK to
-        # the public release-only channel xeroneon/calendax-releases, which Obtainium
+        # the public release-only channel xeroneon/calendarx-releases, which Obtainium
         # pulls from anonymously.
         env:
           GH_TOKEN: ${{ secrets.RELEASE_REPO_PAT }}
@@ -147,11 +147,11 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.ver.outputs.version }}"
           TAG="v${VERSION}"
-          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendax.app). Public obtainium channel; source stays private in xeroneon/calendax."
-          APK="dist-apk/calendax-v${VERSION}.apk"
-          if gh release view "${TAG}" --repo xeroneon/calendax-releases >/dev/null 2>&1; then
-            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendax-releases --clobber
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Public obtainium channel; source stays private in xeroneon/calendarx."
+          APK="dist-apk/calendarx-v${VERSION}.apk"
+          if gh release view "${TAG}" --repo xeroneon/calendarx-releases >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${APK}" --repo xeroneon/calendarx-releases --clobber
           else
-            gh release create "${TAG}" "${APK}" --repo xeroneon/calendax-releases \
+            gh release create "${TAG}" "${APK}" --repo xeroneon/calendarx-releases \
               --title "CalendarX v${VERSION}" --notes "${NOTES}"
           fi

@@ -6,7 +6,7 @@ import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import appCss from '~/styles/app.css?url'
 import calendarCss from '~/styles/calendar.css?url'
-import uiTokens from '@calendax/ui/tokens.css?url'
+import uiTokens from '@calendarx/ui/tokens.css?url'
 import { seo } from '~/utils/seo'
 
 export const Route = createRootRouteWithContext<{

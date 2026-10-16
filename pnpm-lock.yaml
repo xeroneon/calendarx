@@ -35,10 +35,10 @@ importers:
 
   apps/server:
     dependencies:
-      '@calendax/caldav':
+      '@calendarx/caldav':
         specifier: workspace:*
         version: link:../../packages/caldav
-      '@calendax/calendar':
+      '@calendarx/calendar':
         specifier: workspace:*
         version: link:../../packages/calendar
       cors:
@@ -90,13 +90,13 @@ importers:
 
   apps/web:
     dependencies:
-      '@calendax/calendar':
+      '@calendarx/calendar':
         specifier: workspace:*
         version: link:../../packages/calendar
-      '@calendax/sdk':
+      '@calendarx/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@calendax/ui':
+      '@calendarx/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-query':
@@ -154,7 +154,7 @@ importers:
 
   packages/caldav:
     dependencies:
-      '@calendax/calendar':
+      '@calendarx/calendar':
         specifier: workspace:*
         version: link:../calendar
     devDependencies:
@@ -173,7 +173,7 @@ importers:
 
   packages/calendar:
     devDependencies:
-      '@calendax/types':
+      '@calendarx/types':
         specifier: workspace:*
         version: link:../types
       '@types/node':
@@ -206,10 +206,10 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@calendax/calendar':
+      '@calendarx/calendar':
         specifier: workspace:*
         version: link:../calendar
-      '@calendax/types':
+      '@calendarx/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:

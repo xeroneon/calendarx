@@ -1,5 +1,5 @@
 {
-  "name": "@calendax/caldav",
+  "name": "@calendarx/caldav",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -21,7 +21,7 @@
     "lint": "eslint --config ../../eslint.config.mjs src"
   },
   "dependencies": {
-    "@calendax/calendar": "workspace:*"
+    "@calendarx/calendar": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

@@ -6,7 +6,7 @@ import { cn } from '../lib.js'
 import { IconButton } from './IconButton.js'
 
 /**
- * @calendax/ui — Sidebar
+ * @calendarx/ui — Sidebar
  *
  * The app-shell navigation rail, ported from shadcn's sidebar/drawer pattern
  * and adapted onto the XER-74 Linear tokens (`--cx-*`). Two modes driven by a

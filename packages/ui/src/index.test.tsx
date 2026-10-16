@@ -28,7 +28,7 @@ function render(node: React.ReactElement): string {
   return renderToStaticMarkup(node as React.ReactElement<unknown>)
 }
 
-describe('@calendax/ui tokens', () => {
+describe('@calendarx/ui tokens', () => {
   it('has the canonical Linear indigo-violet accent', () => {
     expect(tokens.accent[500]).toBe('#6366f1')
   })
@@ -75,7 +75,7 @@ describe('@calendax/ui tokens', () => {
   })
 })
 
-describe('@calendax/ui primitives (SSR-safe)', () => {
+describe('@calendarx/ui primitives (SSR-safe)', () => {
   it('Button renders a button with type + focus class', () => {
     const html = render(<Button>Save</Button>)
     expect(html).toContain('type="button"')
@@ -188,7 +188,7 @@ describe('@calendax/ui primitives (SSR-safe)', () => {
   })
 })
 
-describe('@calendax/ui interactive composites', () => {
+describe('@calendarx/ui interactive composites', () => {
   it('Tooltip wires accessibility ids without a portal', () => {
     const html = render(
       <Tooltip label="New document">

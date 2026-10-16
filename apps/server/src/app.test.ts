@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { buildApp } from './app.js'
 
-describe('@calendax/server', () => {
+describe('@calendarx/server', () => {
   it('serves /api/health', async () => {
     const res = await request(buildApp(true)).get('/api/health')
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    expect(res.body.data.name).toBe('calendax')
+    expect(res.body.data.name).toBe('calendarx')
   })
 
   it('returns an empty connection list when no CalDAV backend is configured', async () => {

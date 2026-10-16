@@ -2,13 +2,13 @@
  * Calendar web UI helpers (XER-79, Phase 2.2).
  *
  * Pure, dependency-free date math + RFC 5545 CalTime/recurrence builders for
- * the client. Reuses the canonical domain types from `@calendax/calendar` so
+ * the client. Reuses the canonical domain types from `@calendarx/calendar` so
  * the UI and the service stay in lock-step. All day-window math is Monday-first
  * (matches the recurrence engine's WKST=MO default).
  */
-import type { CalTime, HMS, RecurrenceRule, YMD, Occurrence } from '@calendax/calendar'
+import type { CalTime, HMS, RecurrenceRule, YMD, Occurrence } from '@calendarx/calendar'
 
-export type { HMS, YMD } from '@calendax/calendar'
+export type { HMS, YMD } from '@calendarx/calendar'
 
 /* ── YMD / JS Date conversions (local wall clock) ───────────────────────── */
 

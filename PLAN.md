@@ -25,14 +25,14 @@ product.
 | D3 | **CalDAV-generic CLIENT** — works against ANY CalDAV server. Our deployment + seed backend = **Radicale** (open-source, per user Q2 2026-10-16). Nextcloud stays supported but is not our deploy default | Store *connection config*, never the event store |
 | D4 | **Stack:** TanStack (Start + Router + Query), pnpm + Turborepo monorepo, TypeScript | User default + XER-71 stack |
 | D5 | **Android:** Capacitor hybrid wrapper (XER-104) + signed release via XER-215 CI pattern, distributed via Obtainium. First-run connection is a **native** config shell (URL + Test + secure persist → load webview) | Reuse proven wrapper; native onboarding per user require |
-| D6 | **Repo:** NEW `calendax`, dual-origin (Gitea `Xeroneon/calendax` + GitHub `xeroneon/calendax`) | XER-63 convention |
+| D6 | **Repo:** NEW `calendarx`, dual-origin (Gitea `Xeroneon/calendarx` + GitHub `xeroneon/calendarx`) | XER-63 convention |
 | D7 | **License: AGPL-3.0** (user Q1 2026-10-16) — LICENSE added to repo | distributed OSS, keeps it open, deters closed forks |
 | D8 | **Design language:** Linear (near-black/crisp-white, indigo-violet accent, hairline borders, keyboard-first, Command-K) | carry over XER-74 ground rule |
 
-## 3. Repository layout (`~/calendax`)
+## 3. Repository layout (`~/calendarx`)
 
 ```
-calendax/                      (pnpm + Turborepo, TS, AGPL-3.0)
+calendarx/                      (pnpm + Turborepo, TS, AGPL-3.0)
 ├── apps/
 │   ├── web/                   TanStack Start web + PWA (calendar/tasks UI + CalDAV connection screen)
 │   ├── server/                thin API: stores CalDAV connection config + proxies to the upstream
@@ -51,10 +51,10 @@ calendax/                      (pnpm + Turborepo, TS, AGPL-3.0)
 
 ## 4. Extraction sources (`~/cloud`, all on `main`)
 
-- `packages/calendar` → `packages/calendar` (engine reuse verbatim; renamed `@xeroneon/calendar` → `@calendax/calendar`; zero external deps).
+- `packages/calendar` → `packages/calendar` (engine reuse verbatim; renamed `@xeroneon/calendar` → `@calendarx/calendar`; zero external deps).
 - `apps/web/src/.../CalendarBrowser.tsx` + `lib/calendar.ts` + `server/calendar.ts` + route `calendar/index.tsx` → the web UI (XER-79).
-- `packages/ui` → `packages/ui` (design system, `@xeroneon/ui` → `@calendax/ui`, `--xc-*` → `--cx-*`).
-- `packages/mobile-wrapper` → `packages/mobile-wrapper` (XER-104, already generalized) + a `calendax` pre-baked example config.
+- `packages/ui` → `packages/ui` (design system, `@xeroneon/ui` → `@calendarx/ui`, `--xc-*` → `--cx-*`).
+- `packages/mobile-wrapper` → `packages/mobile-wrapper` (XER-104, already generalized) + a `calendarx` pre-baked example config.
 - `.github/workflows/release-android.yml` → the XER-215 release CI pattern.
 - `apps/web/src/lib/auth-call.ts` + `apps/web/src/server/api.ts` pattern → CalDAV connection/auth proxy.
 
@@ -78,7 +78,7 @@ GATED clause is in each card's description.
 ## 6. This card's deliverable (done)
 
 - ✅ Plan doc (this artifact, page-visible) locking stack/scope/repo/**license**/**Android-connect**.
-- ✅ New dual-origin repo `calendax` stood up with Phase 2 code extracted in.
+- ✅ New dual-origin repo `calendarx` stood up with Phase 2 code extracted in.
 - ✅ AGPL-3.0 LICENSE added (Q1 confirmed).
 - ✅ Backend default updated to Radicale (Q2 confirmed; CalDAV-generic preserves the others).
 - ✅ Follow-on card set filed as backlog (XER-305..XER-312).

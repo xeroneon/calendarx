@@ -21,7 +21,7 @@ function buildApp(silent = false): Express {
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       ok: true,
-      data: { service: 'server', name: 'calendax', version: VERSION, status: 'ok' },
+      data: { service: 'server', name: 'calendarx', version: VERSION, status: 'ok' },
     })
   })
 
@@ -44,7 +44,7 @@ export async function startServer(): Promise<void> {
   void defaultConnection()
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`calendax server listening on :${port}`)
+    console.log(`calendarx server listening on :${port}`)
   })
 }
 

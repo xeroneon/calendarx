@@ -1,5 +1,5 @@
 /**
- * @calendax/calendar — Xeroneon Cloud calendar + tasks core (XER-78 / Phase 2.1).
+ * @calendarx/calendar — Xeroneon Cloud calendar + tasks core (XER-78 / Phase 2.1).
  *
  * A dependency-light RFC 5545 iCal engine + CalDAV-ready model: events (VEVENT)
  * and tasks (VTODO, "event with COMPLETED") that share one recurrence, timezone

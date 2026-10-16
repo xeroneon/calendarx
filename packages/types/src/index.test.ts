@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ApiResponse, HealthStatus, User } from './index.js'
 
-describe('@calendax/types', () => {
+describe('@calendarx/types', () => {
   it('models a health status as ok', () => {
     const health: HealthStatus = {
       status: 'ok',

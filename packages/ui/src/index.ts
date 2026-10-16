@@ -1,5 +1,5 @@
 /**
- * @calendax/ui — Xeroneon Cloud design system (Linear look), Phase 0.3 (XER-74).
+ * @calendarx/ui — Xeroneon Cloud design system (Linear look), Phase 0.3 (XER-74).
  *
  * Design tokens + core React components + light/dark themes, keyboard-first,
  * with 120–180ms motion. Shared by every module so the platform looks like one
@@ -8,7 +8,7 @@
  * Import the stylesheet once (e.g. in the root layout) to get the full theme +
  * component primitives:
  *
- *   import '@calendax/ui/tokens.css'
+ *   import '@calendarx/ui/tokens.css'
  */
 
 // ── Design tokens ────────────────────────────────────────────────────────

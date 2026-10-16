@@ -6,8 +6,8 @@ import { renderAll, type MobileWrapperConfig, CLOUD_EXAMPLE, MTG_FREE_EXAMPLE, C
 const USAGE = `xeroneon-mobile-wrap - generate a reusable Capacitor Android wrapper for a web app
 
 USAGE:
-  xeroneon-mobile-wrap --example cloud|mtg|calendax
-      Write cloud.config.ts / mtg.config.ts / calendax.config.ts + the rendered
+  xeroneon-mobile-wrap --example cloud|mtg|calendarx
+      Write cloud.config.ts / mtg.config.ts / calendarx.config.ts + the rendered
       artifacts to ./out/ for the pre-baked reference configs.
 
   xeroneon-mobile-wrap --out <dir> <config.json>
@@ -26,7 +26,7 @@ The JSON config shape (all fields required):
 }`
 
 interface CliArgs {
-  example?: 'cloud' | 'mtg' | 'calendax'
+  example?: 'cloud' | 'mtg' | 'calendarx'
   configFile?: string
   outDir: string
 }
@@ -54,8 +54,8 @@ function configFromArgs(args: CliArgs): MobileWrapperConfig {
   if (args.example) {
     if (args.example === 'cloud') return CLOUD_EXAMPLE
     if (args.example === 'mtg') return MTG_FREE_EXAMPLE
-    if (args.example === 'calendax') return CALENDARX_EXAMPLE
-    console.error(`error: unknown example '${args.example}' (expected cloud|mtg|calendax)`)
+    if (args.example === 'calendarx') return CALENDARX_EXAMPLE
+    console.error(`error: unknown example '${args.example}' (expected cloud|mtg|calendarx)`)
     process.exit(1)
   }
   const raw = JSON.parse(readFileSync(args.configFile!, 'utf8')) as MobileWrapperConfig

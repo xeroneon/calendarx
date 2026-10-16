@@ -4,8 +4,8 @@
  * CalendarX is a *CalDAV-generic client*: the browser/PWA must never hold the
  * upstream CalDAV password. This server stores the active CalDAV connection
  * (base URL, principal, auth mode) and proxies the CalDAV protocol through
- * `@calendax/caldav`, translating upstream collections/items into the shared
- * domain model from `@calendax/calendar`. Web hooks for the connection screen
+ * `@calendarx/caldav`, translating upstream collections/items into the shared
+ * domain model from `@calendarx/calendar`. Web hooks for the connection screen
  * live at `/api/connections`; the calendar surface at `/api/calendar`.
  *
  * SEED SCOPE: a single in-memory connection (Radicale is the seed/deploy default
@@ -18,8 +18,8 @@ import {
   CalDavClient,
   type CalDavAuth,
   type CalDavConnectionConfig,
-} from '@calendax/caldav'
-import { newUid, type CalendarItem } from '@calendax/calendar'
+} from '@calendarx/caldav'
+import { newUid, type CalendarItem } from '@calendarx/calendar'
 
 /** In-memory active CalDAV connection (replaced by durable store in a later card). */
 interface StoredConnection {
@@ -190,7 +190,7 @@ calendarRouter.get('/:key/occurrences', async (req: Request, res: Response) => {
   try {
     const items = await clientFor(c).queryItems(href, start, end)
     // Expand recurring items over the window using the engine's CalendarStore.
-    const { CalendarStore } = await import('@calendax/calendar')
+    const { CalendarStore } = await import('@calendarx/calendar')
     const store = new CalendarStore()
     for (const it of items) store.createItem(href, it)
     const occurrences = store.expand({ rangeStartUtc: start, rangeEndUtc: end, includeOverlapping: true })

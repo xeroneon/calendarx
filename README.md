@@ -19,14 +19,14 @@ scratch.
 - **pnpm + Turborepo** monorepo, TypeScript end-to-end
 - **TanStack Start** (Router + Query) web app + PWA
 - **Capacitor** hybrid wrapper → signed **Android APK** → Obtainium
-- RFC 5545 engine (`@calendax/calendar`) + **CalDAV client** (`@calendax/caldav`)
+- RFC 5545 engine (`@calendarx/calendar`) + **CalDAV client** (`@calendarx/caldav`)
 
 ## Layout
 
 ```
 apps/web       TanStack Start web + PWA (calendar/tasks UI + CalDAV connection)
 apps/server    thin API: stores the CalDAV connection + proxies to the upstream
-apps/mobile    Capacitor Android wrapper (from @calendax/mobile-wrapper)
+apps/mobile    Capacitor Android wrapper (from @calendarx/mobile-wrapper)
 packages/      calendar (RFC5545 engine) · caldav (client) · ui · sdk · types ·
                mobile-wrapper (Capacitor generator)
 ```
@@ -49,11 +49,11 @@ CALDAV_BASE_URL=http://localhost:5232/ \
 
 ## Android
 
-`@calendax/mobile-wrapper` (XER-104) generates the Capacitor wrapper + signed
-release CI. Pre-baked `calendax` config:
+`@calendarx/mobile-wrapper` (XER-104) generates the Capacitor wrapper + signed
+release CI. Pre-baked `calendarx` config:
 
 ```bash
-pnpm --filter @calendax/mobile-wrapper exec xeroneon-mobile-wrap --example calendax
+pnpm --filter @calendarx/mobile-wrapper exec xeroneon-mobile-wrap --example calendarx
 ```
 
 ## License

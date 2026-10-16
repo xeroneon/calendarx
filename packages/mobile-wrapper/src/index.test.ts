@@ -8,7 +8,7 @@ import {
   type MobileWrapperConfig,
 } from './index.js'
 
-describe('@calendax/mobile-wrapper', () => {
+describe('@calendarx/mobile-wrapper', () => {
   it('renders a valid capacitor.config.ts for the monorepo (cloud) shape', () => {
     const { capacitorConfig } = renderMobileWrapper(CLOUD_EXAMPLE)
     expect(capacitorConfig).toContain("appId: 'dev.xeroneon.cloud'")
@@ -28,13 +28,13 @@ describe('@calendax/mobile-wrapper', () => {
 
   it('monorepo workflow uses pnpm build filter, pnpm cache and pnpm cap sync', () => {
     const { releaseWorkflow } = renderMobileWrapper(CLOUD_EXAMPLE)
-    expect(releaseWorkflow).toContain('pnpm --filter "@calendax/web..." build')
+    expect(releaseWorkflow).toContain('pnpm --filter "@calendarx/web..." build')
     expect(releaseWorkflow).toContain('cache: pnpm')
     expect(releaseWorkflow).toContain('pnpm exec cap sync android')
     expect(releaseWorkflow).toContain('xeroneon-cloud-v${{ steps.ver.outputs.version }}.apk')
     // The `...` must be preserved verbatim (workspace-filter expansion, not a glob).
-    expect(releaseWorkflow).not.toContain('@calendax/web.. build')
-    expect(releaseWorkflow).toContain('pnpm --filter "@calendax/web..." build')
+    expect(releaseWorkflow).not.toContain('@calendarx/web.. build')
+    expect(releaseWorkflow).toContain('pnpm --filter "@calendarx/web..." build')
 
     expect(releaseWorkflow).toContain('working-directory: apps/mobile/android')
   })
@@ -78,7 +78,7 @@ describe('@calendax/mobile-wrapper', () => {
 describe('CalendarX example (XER-303): a fresh app renders from config alone', () => {
   it('renders a valid monorepo capacitor config for CalendarX', () => {
     const { capacitorConfig } = renderMobileWrapper(CALENDARX_EXAMPLE)
-    expect(capacitorConfig).toContain("appId: 'dev.calendax.app'")
+    expect(capacitorConfig).toContain("appId: 'dev.calendarx.app'")
     expect(capacitorConfig).toContain("appName: 'CalendarX'")
     expect(capacitorConfig).toContain("webDir: '../../apps/web/dist/client'")
     expect(capacitorConfig).toContain("process.env.CALENDARX_ANDROID_ORIGIN")
@@ -86,9 +86,9 @@ describe('CalendarX example (XER-303): a fresh app renders from config alone', (
 
   it('renders a release workflow with the CalendarX identity + Obtainium channel', () => {
     const { releaseWorkflow } = renderMobileWrapper(CALENDARX_EXAMPLE)
-    expect(releaseWorkflow).toContain('pnpm --filter "@calendax/web..." build')
-    expect(releaseWorkflow).toContain('calendax-v${{ steps.ver.outputs.version }}.apk')
-    expect(releaseWorkflow).toContain('xeroneon/calendax-releases')
+    expect(releaseWorkflow).toContain('pnpm --filter "@calendarx/web..." build')
+    expect(releaseWorkflow).toContain('calendarx-v${{ steps.ver.outputs.version }}.apk')
+    expect(releaseWorkflow).toContain('xeroneon/calendarx-releases')
     expect(releaseWorkflow).toContain('-PsigningStoreFile')
   })
 
@@ -96,7 +96,7 @@ describe('CalendarX example (XER-303): a fresh app renders from config alone', (
     const rb = renderRunbook(CALENDARX_EXAMPLE)
     expect(rb).toContain('keytool -genkeypair')
     expect(rb).toContain('ANDROID_SIGNING_KEYSTORE_BASE64')
-    expect(rb).toContain('xeroneon/calendax-releases')
+    expect(rb).toContain('xeroneon/calendarx-releases')
     expect(rb).toContain('Obtainium')
   })
 })

@@ -1,5 +1,5 @@
 {
-  "name": "@calendax/server",
+  "name": "@calendarx/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "lint": "eslint --config ../../eslint.config.mjs src"
   },
   "dependencies": {
-    "@calendax/calendar": "workspace:*",
-    "@calendax/caldav": "workspace:*",
+    "@calendarx/calendar": "workspace:*",
+    "@calendarx/caldav": "workspace:*",
     "cors": "^2.8.5",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",

@@ -1,17 +1,17 @@
-import type { ApiResponse } from '@calendax/types'
+import type { ApiResponse } from '@calendarx/types'
 import type {
   CalendarCollection,
   CalendarEvent,
   CalendarItem,
   CalendarTask,
   Occurrence,
-} from '@calendax/calendar'
+} from '@calendarx/calendar'
 
 /**
  * Re-export the canonical calendar/tasks domain types so consumers only need
  * the SDK as their typed surface (Phase 2.2 — XER-79, extracted to CalendarX).
  */
-export type { CalTime, CalendarCollection, CalendarEvent, CalendarItem, CalendarTask, Occurrence } from '@calendax/calendar'
+export type { CalTime, CalendarCollection, CalendarEvent, CalendarItem, CalendarTask, Occurrence } from '@calendarx/calendar'
 
 /**
  * Typed API client for the CalendarX server.

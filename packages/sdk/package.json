@@ -1,5 +1,5 @@
 {
-  "name": "@calendax/sdk",
+  "name": "@calendarx/sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -22,8 +22,8 @@
     "lint": "eslint --config ../../eslint.config.mjs src"
   },
   "dependencies": {
-    "@calendax/calendar": "workspace:*",
-    "@calendax/types": "workspace:*"
+    "@calendarx/calendar": "workspace:*",
+    "@calendarx/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

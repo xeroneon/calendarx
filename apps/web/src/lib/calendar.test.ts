@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseYmdKey, todayYmd, monthGrid, calTimeFromInputs } from './calendar'
 
-describe('@calendax/web calendar helpers', () => {
+describe('@calendarx/web calendar helpers', () => {
   it('parses a YYYY-MM-DD key', () => {
     expect(parseYmdKey('2026-03-02')).toEqual({ year: 2026, month: 3, day: 2 })
     expect(parseYmdKey('not-a-date')).toBeNull()

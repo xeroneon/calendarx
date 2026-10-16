@@ -1,9 +1,9 @@
 /**
- * @calendax/caldav — the CalDAV-generic CLIENT for CalendarX.
+ * @calendarx/caldav — the CalDAV-generic CLIENT for CalendarX.
  *
  * Talks the CalDAV wire protocol (RFC 4791 / RFC 4918 WebDAV) against ANY
  * standards-compliant server: Nextcloud Calendar, Radicale, Baikal, iCloud.
- * Uses the RFC 5545 engine from `@calendax/calendar` to parse/serialize the
+ * Uses the RFC 5545 engine from `@calendarx/calendar` to parse/serialize the
  * iCalendar payloads carried over the wire, so CALDAV and ICS stay in lock-step.
  *
  * SEED SCOPE (XER-303): this is the baseline client — principal discovery,
@@ -18,7 +18,7 @@ import {
   serializeCalendar,
   type CalendarCollection,
   type CalendarItem,
-} from '@calendax/calendar'
+} from '@calendarx/calendar'
 
 /**
  * How this CalDAV connection authenticates. `basic` covers Nextcloud /
@@ -113,7 +113,7 @@ const XML_CONTENT_TYPES = ['application/xml', 'text/xml']
 /**
  * CalDavClient — thin protocol client over any CalDAV server.
  *
- * All list/read/write methods return plain types from `@calendax/calendar`
+ * All list/read/write methods return plain types from `@calendarx/calendar`
  * (CalendarCollection / CalendarItem), so the UI consumes the same domain
  * model whether the backend is Nextcloud, Radicale, Baikal or iCloud.
  */
