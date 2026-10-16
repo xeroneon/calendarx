@@ -1,37 +1,54 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Checkbox, CommandMenu, Dialog, Kbd, Select, useDialog } from '@calendarx/ui'
-import type { CalendarItem, CalTime, CalendarTask, Occurrence } from '@calendarx/sdk'
+import type { CalTime, CalendarCollection, CalendarItem, CalendarTask, Occurrence } from '@calendarx/sdk'
+import type { Alarm, RecurrenceRule } from '@calendarx/calendar'
 import { createItem, deleteItem, expand, listCalendars, listItems, updateItem, DEFAULT_CAL_KEY } from '~/server/calendar'
 import { authCall } from '~/lib/auth-call'
 import {
+  ALARM_PRESETS,
   RECUR_FREQS,
   addDays,
   addMonths,
+  alarmLabelFor,
+  alarmMinutesFrom,
+  attendeesToText,
+  buildRule,
   calTimeFromInputs,
   formatHms,
-  freqFromRule,
   hmsFromInput,
   monthGrid,
   monthLabel,
   occDay,
   occTime,
+  parseAttendeeEmails,
   parseYmdKey,
   recurLabel,
-  ruleForFreq,
+  ruleToState,
   timeRangeLabel,
   todayYmd,
+  triggerForMinutes,
+  WEEKDAY_CODES,
   weekdayShort,
   weekWindow,
   windowUtc,
   ymdKey,
   ymdToDate,
+  type ByDayEntry,
   type HMS,
   type RecurFreq,
+  type Weekday,
   type YMD,
 } from '~/lib/calendar'
 
 export type CalendarView = 'month' | 'week' | 'day' | 'tasks'
+
+interface EditTarget {
+  kind: 'event' | 'task'
+  item?: CalendarItem
+  /** Optional pre-filled creation date (set when creating from a grid cell). */
+  date?: YMD
+}
 
 interface CalendarBrowserProps {
   key?: string
@@ -82,14 +99,23 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
   const [sel, setSel] = React.useState<{ uid: string; startLocal: string } | null>(null)
   const [filter, setFilter] = React.useState('')
   const [cmdOpen, setCmdOpen] = React.useState(false)
-  const [editTarget, setEditTarget] = React.useState<{ kind: 'event' | 'task'; item?: CalendarItem } | null>(null)
+  const [editTarget, setEditTarget] = React.useState<EditTarget | null>(null)
   const help = useDialog()
   const confirmDel = useDialog()
 
-  const calKey = DEFAULT_CAL_KEY
-
   /* ---- data ------------------------------------------------------------ */
   const calsQuery = useQuery({ queryKey: ['calendar', 'cals'], queryFn: () => authCall(() => listCalendars({ data: {} })) })
+  const calendars = calsQuery.data ?? []
+
+  // Active calendar collection — resolved to the first real collection once it
+  // loads (XER-306 multi-calendar picker), falling back to the demo default key.
+  const [calKey, setCalKey] = React.useState<string>(DEFAULT_CAL_KEY)
+  React.useEffect(() => {
+    if (calendars.length && !calendars.some((c) => c.key === calKey)) {
+      setCalKey(calendars[0]!.key)
+    }
+  }, [calendars, calKey])
+
   const itemsQuery = useQuery({
     queryKey: ['calendar', 'items', calKey],
     queryFn: () => authCall(() => listItems({ data: { key: calKey, kind: 'all' } })),
@@ -119,15 +145,20 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
   })
   const occurrences = occQuery.data ?? []
 
-  const calColor = ((): string => {
-    const cs = calsQuery.data ?? []
-    return cs.find((c) => c.key === calKey)?.color ?? '#6366f1'
+  const calColor = (() => {
+    return calendars.find((c) => c.key === calKey)?.color ?? '#6366f1'
   })()
 
   const refresh = (): void => {
     void qc.invalidateQueries({ queryKey: ['calendar', 'occurrences'] })
     void qc.invalidateQueries({ queryKey: ['calendar', 'occ'] })
     void qc.invalidateQueries({ queryKey: ['calendar', 'items'] })
+  }
+
+  /** Open the create dialog for a specific day (click-to-create, XER-306). */
+  const createOn = (day: YMD): void => {
+    setAnchor(day)
+    setEditTarget({ kind: 'event', date: day })
   }
 
   /* ---- keyboard ------------------------------------------------------------------ */
@@ -156,6 +187,13 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
       case ']':
         e.preventDefault()
         setAnchor(nextPeriod(anchor, viewState))
+        break
+      case 'c':
+        if (calendars.length > 1) {
+          e.preventDefault()
+          const idx = calendars.findIndex((c) => c.key === calKey)
+          setCalKey(calendars[(idx + 1) % calendars.length]!.key)
+        }
         break
       case 'n':
         e.preventDefault()
@@ -288,22 +326,30 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
   return (
     <div className="cl-root" data-cl tabIndex={0} onKeyDown={onKeyDown}>
       <CommandMenu
-        open={cmdOpen}
-        onOpenChange={setCmdOpen}
-        title="Calendar + Tasks"
-        placeholder="Jump to a view or action…"
-        shortcut="mod+k"
-        items={[
-          { id: 'month', label: 'View: Month', group: 'Views', hint: 'm', onSelect: () => setViewState('month') },
-          { id: 'week', label: 'View: Week', group: 'Views', hint: 'w', onSelect: () => setViewState('week') },
-          { id: 'day', label: 'View: Day', group: 'Views', hint: 'd', onSelect: () => setViewState('day') },
-          { id: 'tasks', label: 'Tasks list', group: 'Views', hint: 't', onSelect: () => setViewState('tasks') },
-          { id: 'new-event', label: 'New event', group: 'Actions', hint: 'n', onSelect: () => setEditTarget({ kind: 'event' }) },
-          { id: 'new-task', label: 'New task', group: 'Actions', hint: 'shift+n', onSelect: () => setEditTarget({ kind: 'task' }) },
-          { id: 'today', label: 'Today', group: 'Actions', onSelect: () => setAnchor(today) },
-          { id: 'help', label: 'Keyboard shortcuts', group: 'Actions', hint: '?', onSelect: () => help.setOpen(true) },
-        ]}
-      />
+          open={cmdOpen}
+          onOpenChange={setCmdOpen}
+          title="Calendar + Tasks"
+          placeholder="Jump to a view or action…"
+          shortcut="mod+k"
+          items={[
+            { id: 'month', label: 'View: Month', group: 'Views', hint: 'm', onSelect: () => setViewState('month') },
+            { id: 'week', label: 'View: Week', group: 'Views', hint: 'w', onSelect: () => setViewState('week') },
+            { id: 'day', label: 'View: Day', group: 'Views', hint: 'd', onSelect: () => setViewState('day') },
+            { id: 'tasks', label: 'Tasks list', group: 'Views', hint: 't', onSelect: () => setViewState('tasks') },
+            ...calendars.map((c) => ({
+              id: `cal:${c.key}`,
+              label: `Go to calendar: ${c.displayName}`,
+              group: 'Calendars',
+              keywords: [c.displayName, c.key],
+              icon: <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color ?? '#6366f1', display: 'inline-block' }} />,
+              onSelect: () => setCalKey(c.key),
+            })),
+            { id: 'new-event', label: 'New event', group: 'Actions', hint: 'n', onSelect: () => setEditTarget({ kind: 'event' }) },
+            { id: 'new-task', label: 'New task', group: 'Actions', hint: 'shift+n', onSelect: () => setEditTarget({ kind: 'task' }) },
+            { id: 'today', label: 'Today', group: 'Actions', onSelect: () => setAnchor(today) },
+            { id: 'help', label: 'Keyboard shortcuts', group: 'Actions', hint: '?', onSelect: () => help.setOpen(true) },
+          ]}
+        />
 
       {/* toolbar */}
       <div className="cl-toolbar">
@@ -319,6 +365,24 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
           </Button>
           <span className="cl-title">{viewState === 'tasks' ? 'Tasks' : periodLabel(anchor, viewState)}</span>
         </div>
+
+        {calendars.length > 0 && (
+          <div className="cl-cal-picker">
+            <span className="cl-cal-dot" style={{ background: calColor }} aria-hidden />
+            <Select
+              size="sm"
+              value={calKey}
+              aria-label="Calendar"
+              onChange={(e) => setCalKey(e.target.value)}
+            >
+              {calendars.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.displayName}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
         <div className="cl-views" role="tablist" aria-label="Calendar view">
           {(
@@ -375,8 +439,9 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
       {editTarget ? (
         <ItemDialog
           target={editTarget}
-          defaultDate={anchor}
+          defaultDate={editTarget.date ?? anchor}
           calKey={calKey}
+          calendars={calendars}
           onClose={() => setEditTarget(null)}
           onSaved={refresh}
         />
@@ -407,6 +472,7 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
           {[
             ['m / w / d / t', 'Month / Week / Day / Tasks views'],
             ['[ / ]', 'Previous / next period'],
+            ['c', 'Cycle calendars'],
             ['j / k', 'Move focus through items'],
             ['n', 'New item (task in Tasks view, else event)'],
             ['e / Enter', 'Edit focused item'],
@@ -451,14 +517,25 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
               const occs = occOn(d)
               return (
                 <div key={key} className={`cl-day${inMonth ? '' : ' out'}`} role="gridcell">
-                  <button
-                    type="button"
-                    className={`cl-daynum${ymdKey(d) === ymdKey(today) ? ' today' : ''}`}
-                    onClick={() => setAnchor(d)}
-                    aria-label={`${ymdKey(d)}`}
-                  >
-                    {d.day}
-                  </button>
+                  <div className="cl-day-head">
+                    <button
+                      type="button"
+                      className={`cl-daynum${ymdKey(d) === ymdKey(today) ? ' today' : ''}`}
+                      onClick={() => setAnchor(d)}
+                      aria-label={`${ymdKey(d)}`}
+                    >
+                      {d.day}
+                    </button>
+                    <button
+                      type="button"
+                      className="cl-day-add"
+                      aria-label={`Add event on ${ymdKey(d)}`}
+                      title="Add event"
+                      onClick={() => createOn(d)}
+                    >
+                      +
+                    </button>
+                  </div>
                   <div className="cl-day-events">
                     {occs.slice(0, 3).map((o) => chip(o))}
                     {occs.length > 3 ? (
@@ -490,6 +567,15 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
                 >
                   {lbl}
                 </button>
+                <button
+                  type="button"
+                  className="cl-col-add"
+                  aria-label={`Add event on ${ymdKey(d)}`}
+                  title="Add event"
+                  onClick={() => createOn(d)}
+                >
+                  +
+                </button>
               </div>
             )
           })}
@@ -499,7 +585,7 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
             const occs = occOn(d)
             const key = ymdKey(d)
             return (
-              <div key={key} className={`cl-col${weekdayIndex(d) >= 5 ? ' wknd' : ''}`}>
+              <div key={key} className={`cl-col${weekdayIndex(d) >= 5 ? ' wknd' : ''}`} onDoubleClick={() => createOn(d)}>
                 {occs.length === 0 ? (
                   <div className="cl-col-empty">—</div>
                 ) : (
@@ -521,7 +607,7 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
           <span className={`cl-dayview-title${ymdKey(anchor) === ymdKey(today) ? ' today' : ''}`}>
             {formatLong(anchor)}
           </span>
-          <Button size="sm" variant="primary" onClick={() => setEditTarget({ kind: 'event' })}>
+          <Button size="sm" variant="primary" onClick={() => createOn(anchor)}>
             New
           </Button>
         </div>
@@ -639,18 +725,22 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
 interface ItemDialogTarget {
   kind: 'event' | 'task'
   item?: CalendarItem
+  /** Optional pre-filled creation date (set when creating from a grid cell). */
+  date?: YMD
 }
 
 function ItemDialog({
   target,
   defaultDate,
   calKey,
+  calendars,
   onClose,
   onSaved,
 }: {
   target: ItemDialogTarget
   defaultDate: YMD
   calKey: string
+  calendars: CalendarCollection[]
   onClose: () => void
   onSaved: () => void
 }): React.ReactElement {
@@ -659,6 +749,11 @@ function ItemDialog({
   const existingTask = existing?.kind === 'task' ? existing : null
   const existingEvent = existing?.kind === 'event' ? existing : null
   const dt = existing ? calTimeToForm(editKind === 'task' ? (existingTask?.due ?? existingTask?.dtstart) : existingEvent?.dtstart) : null
+  const ruleState = ruleToState(existing?.recurrence)
+
+  // Resolve the calendar the item actually lives on (an edited item is fixed to
+  // its source collection; a new item can be sent to any loaded calendar).
+  const effectiveCalKey = existing ? calKey : calendars.length ? calendars[0]!.key : calKey
 
   const [summary, setSummary] = React.useState(existing?.summary ?? '')
   const [kind, setKind] = React.useState<'event' | 'task'>(editKind)
@@ -668,17 +763,27 @@ function ItemDialog({
   const [durMin, setDurMin] = React.useState(dt ? (durationMinutes(existing && existing.kind === 'event' ? existing.duration : undefined) ?? 60) : 60)
   const [dueDate, setDueDate] = React.useState(dt ? ymdKey(dt.ymd) : ymdKey(defaultDate))
   const [dueTime, setDueTime] = React.useState(dt?.hms ? formatHms(dt.hms) : '17:00')
-  const [recur, setRecur] = React.useState<RecurFreq>(freqFromRule(existing?.recurrence))
+  const [location, setLocation] = React.useState(existing?.location ?? '')
+  const [attendeesText, setAttendeesText] = React.useState(attendeesToText(existing?.attendees))
   const [desc, setDesc] = React.useState(existing?.description ?? '')
   const [done, setDone] = React.useState(existing?.kind === 'task' && existing.status === 'COMPLETED')
 
+  // Recurrence rule-builder state (XER-306).
+  const [freq, setFreq] = React.useState<RecurFreq>(ruleState.freq)
+  const [interval, setInterval] = React.useState(ruleState.interval)
+  const [byday, setByday] = React.useState<ByDayEntry[]>(ruleState.byday)
+  // Alarms list — display minutes-before per alarm (XER-306 full dialog).
+  const [alarms, setAlarms] = React.useState<number[]>((existing?.alarms ?? []).map((a) => alarmMinutesFrom(a)))
+
+  const [destCal, setDestCal] = React.useState<string>(effectiveCalKey)
+
   const save = useMutation({
-    mutationFn: (payload: { kind: 'event' | 'task'; uid?: string; body: Record<string, unknown> }) => {
+    mutationFn: (payload: { kind: 'event' | 'task'; calKey: string; uid?: string; body: Record<string, unknown> }) => {
       if (payload.uid) {
         const uid = payload.uid // widened-safe capture (closure doesn't preserve narrowing)
-        return authCall(() => updateItem({ data: { key: calKey, uid, patch: payload.body } }))
+        return authCall(() => updateItem({ data: { key: payload.calKey, uid, patch: payload.body } }))
       }
-      return authCall(() => createItem({ data: { key: calKey, item: payload.body as unknown as CalendarItem } }))
+      return authCall(() => createItem({ data: { key: payload.calKey, item: payload.body as unknown as CalendarItem } }))
     },
     onSuccess: () => {
       onSaved()
@@ -689,25 +794,51 @@ function ItemDialog({
   const submit = (): void => {
     const startYmd = parseYmdKey(startDate)
     if (!startYmd) return
-    const body: Record<string, unknown> = { summary: summary.trim(), description: desc }
-    body.recurrence = ruleForFreq(recur)
+    const body: Record<string, unknown> = {
+      summary: summary.trim(),
+      description: desc,
+    }
+    const locationTrim = location.trim()
+    if (locationTrim) body.location = locationTrim
+    const attendees = parseAttendeeEmails(attendeesText)
+    if (attendees.length) body.attendees = attendees
+    if (alarms.length && alarms.some((m) => m > 0)) {
+      body.alarms = alarms.filter((m) => m > 0).map((m) => ({ action: 'DISPLAY' as Alarm['action'], trigger: triggerForMinutes(m) }))
+    }
+    const rule = buildRule(freq, { interval, byday })
+    body.recurrence = rule
     if (kind === 'event') {
       body.kind = 'event'
       body.dtstart = calTimeFromInputs(allDay, startYmd, hmsFromInput(startTime))
       body.duration = allDay ? `P${Math.max(1, Math.round(durMin / 1440))}D` : `PT${durMin}M`
-      void save.mutate({ kind: 'event', uid: existing?.uid, body })
+      void save.mutate({ kind: 'event', calKey: destCal, uid: existing?.uid, body })
     } else {
       body.kind = 'task'
       const dueYmd = parseYmdKey(dueDate) ?? startYmd
       body.due = calTimeFromInputs(allDay, dueYmd, hmsFromInput(dueTime))
       body.status = done ? 'COMPLETED' : 'NEEDS-ACTION'
       body.percentComplete = done ? 100 : 0
-      void save.mutate({ kind: 'task', uid: existing?.uid, body })
+      void save.mutate({ kind: 'task', calKey: destCal, uid: existing?.uid, body })
     }
   }
 
+  const toggleDay = (w: Weekday): void => {
+    setByday((prev) => {
+      const has = prev.some((d) => d.weekday === w)
+      const next = has ? prev.filter((d) => d.weekday !== w) : [...prev, { weekday: w }]
+      return next
+    })
+  }
+
+  const addAlarm = (minutes: number): void => {
+    setAlarms((prev) => (prev.includes(minutes) ? prev : [...prev, minutes].sort((a, b) => a - b)))
+  }
+  const removeAlarm = (minutes: number): void => {
+    setAlarms((prev) => prev.filter((m) => m !== minutes))
+  }
+
   return (
-    <Dialog open onOpenChange={(o) => {
+    <Dialog width={480} open onOpenChange={(o) => {
       if (!o) onClose()
     }}>
       <form
@@ -723,6 +854,19 @@ function ItemDialog({
             <option value="task">Task</option>
           </Select>
         </div>
+
+        {calendars.length > 0 && (
+          <div className="cl-form-row split">
+            <label>Calendar</label>
+            <Select size="sm" value={destCal} onChange={(e) => setDestCal(e.target.value)} disabled={!!existing}>
+              {calendars.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.displayName}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
         <label className="cl-field-label">Summary</label>
         <input autoFocus className="cl-input cl-input-lg" placeholder="Add title" value={summary} onChange={(e) => setSummary(e.target.value)} />
@@ -785,8 +929,21 @@ function ItemDialog({
         )}
 
         <div className="cl-form-row split">
+          <label>Location</label>
+          <input className="cl-input" placeholder="Room, link, or address" value={location} onChange={(e) => setLocation(e.target.value)} />
+        </div>
+
+        {kind === 'event' && (
+          <div className="cl-form-row split">
+            <label>Attendees</label>
+            <input className="cl-input" placeholder="alice@example.com, bob@…" value={attendeesText} onChange={(e) => setAttendeesText(e.target.value)} />
+          </div>
+        )}
+
+        {/* Recurrence rule builder (XER-306) */}
+        <div className="cl-form-row split">
           <label>Repeats</label>
-          <Select size="sm" value={recur} onChange={(e) => setRecur(e.target.value as RecurFreq)}>
+          <Select size="sm" value={freq} onChange={(e) => setFreq(e.target.value as RecurFreq)}>
             {RECUR_FREQS.map((f) => (
               <option key={f} value={f}>
                 {recurLabel(f)}
@@ -794,6 +951,69 @@ function ItemDialog({
             ))}
           </Select>
         </div>
+
+        {freq !== 'NONE' && (
+          <div className="cl-form-row split">
+            <label>Every</label>
+            <div className="cl-inline-row">
+              <input
+                className="cl-input cl-num-input"
+                type="number"
+                min={1}
+                max={99}
+                value={interval}
+                onChange={(e) => setInterval(Math.max(1, Number(e.target.value) || 1))}
+                aria-label="Repeat interval"
+              />
+              <span className="cl-muted">{freq === 'DAILY' ? (interval === 1 ? 'day' : 'days') : freq === 'WEEKLY' ? (interval === 1 ? 'week' : 'weeks') : freq === 'MONTHLY' ? (interval === 1 ? 'month' : 'months') : interval === 1 ? 'year' : 'years'}</span>
+            </div>
+          </div>
+        )}
+
+        {freq === 'WEEKLY' && (
+          <div className="cl-form-row" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {WEEKDAY_CODES.map((w) => {
+              const on = byday.some((d) => d.weekday === w)
+              return (
+                <button
+                  key={w}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleDay(w)}
+                  className={`cl-byday-btn${on ? ' on' : ''}`}
+                >
+                  {w.slice(0, 2)}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Alarms (XER-306) */}
+        {!allDay && kind === 'event' && (
+          <div className="cl-alarm-row">
+            <label className="cl-field-label">Reminders</label>
+            {alarms.length > 0 && (
+              <ul className="cl-alarm-list">
+                {alarms.map((m) => (
+                  <li key={m}>
+                    <span className="cl-muted">{alarmLabelFor(m)}</span>
+                    <button type="button" className="cl-alarm-remove" aria-label={`Remove ${alarmLabelFor(m)}`} onClick={() => removeAlarm(m)}>
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="cl-form-row" style={{ gap: 4, flexWrap: 'wrap' }}>
+              {ALARM_PRESETS.filter((p) => p.minutes > 0).map((p) => (
+                <button key={p.minutes} type="button" className="cl-alarm-add" onClick={() => addAlarm(p.minutes)} disabled={alarms.includes(p.minutes)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <label className="cl-field-label">Notes</label>
         <textarea className="cl-input cl-notes" rows={2} placeholder="Optional description" value={desc} onChange={(e) => setDesc(e.target.value)} />

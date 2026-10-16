@@ -6,9 +6,11 @@
  * the UI and the service stay in lock-step. All day-window math is Monday-first
  * (matches the recurrence engine's WKST=MO default).
  */
-import type { CalTime, HMS, RecurrenceRule, YMD, Occurrence } from '@calendarx/calendar'
+import { attendee, uriEmail } from '@calendarx/calendar'
+import type { Alarm, Attendee, ByDayEntry, CalTime, HMS, RecurrenceRule, Weekday, YMD, Occurrence } from '@calendarx/calendar'
 
-export type { HMS, YMD } from '@calendarx/calendar'
+export type { HMS, YMD, Weekday } from '@calendarx/calendar'
+export type { ByDayEntry } from '@calendarx/calendar'
 
 /* ── YMD / JS Date conversions (local wall clock) ───────────────────────── */
 
@@ -175,6 +177,9 @@ export function ruleForFreq(f: RecurFreq, interval = 1): RecurrenceRule | undefi
   return { freq: f, interval: Math.max(1, Math.round(interval)) }
 }
 
+/** WEEKDAY codes in UI order (Mon-first, matching the grid). */
+export const WEEKDAY_CODES: readonly Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+
 /** Inverse of ruleForFreq — recover the form frequency from a stored RRULE. */
 export function freqFromRule(r?: RecurrenceRule | null): RecurFreq {
   if (!r) return 'NONE'
@@ -187,6 +192,108 @@ export function freqFromRule(r?: RecurrenceRule | null): RecurFreq {
     default:
       return 'NONE'
   }
+}
+
+/**
+ * Build a full RRULE from the reccurrence rule-builder state (XER-306).
+ * Supports the monthly/day anchors the UI exposes: a normal FREQ, an optional
+ * interval, and (WEEKLY only) an explicit BYDAY set. Returns undefined for
+ * NONE. The weekly byday defaults to the rule's existing BYDAY; when a caller
+ * passes `byday`, it replaces the existing set so multi-select UI round-trips.
+ */
+export function buildRule(
+  freq: RecurFreq,
+  opts: { interval?: number; byday?: ByDayEntry[] } = {},
+): RecurrenceRule | undefined {
+  if (freq === 'NONE') return undefined
+  const rule: RecurrenceRule = { freq, interval: Math.max(1, Math.round(opts.interval ?? 1)) }
+  if (freq === 'WEEKLY' && opts.byday && opts.byday.length) rule.byday = opts.byday
+  return rule
+}
+
+/** Read the builder state (freq / interval / weekly byday set) back off a stored rule. */
+export function ruleToState(r?: RecurrenceRule | null): { freq: RecurFreq; interval: number; byday: ByDayEntry[] } {
+  const freq = freqFromRule(r)
+  const interval = r?.interval && r.interval > 0 ? r.interval : 1
+  const byday = r?.freq === 'WEEKLY' && r.byday?.length ? r.byday : []
+  return { freq, interval, byday }
+}
+
+/* ── Alarm helpers (VALARM, relative "minutes before") ──────────────────── */
+
+export const ALARM_PRESETS: readonly { minutes: number; label: string }[] = [
+  { minutes: 0, label: 'At time of event' },
+  { minutes: 5, label: '5 minutes before' },
+  { minutes: 15, label: '15 minutes before' },
+  { minutes: 30, label: '30 minutes before' },
+  { minutes: 60, label: '1 hour before' },
+  { minutes: 120, label: '2 hours before' },
+  { minutes: 1440, label: '1 day before' },
+]
+
+/** Parse an RFC 5545 relative trigger (e.g. "-PT15M", "-PT1H30M") → minutes before. */
+export function alarmMinutes(trigger: string): number | null {
+  const m = /^(-?)P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?$/.exec(trigger.trim())
+  if (!m) return null
+  const days = m[2] ? Number(m[2]) : 0
+  const hours = m[3] ? Number(m[3]) : 0
+  const mins = m[4] ? Number(m[4]) : 0
+  const total = days * 1440 + hours * 60 + mins
+  return m[1] ? total : -total
+}
+
+/** Build a relative "minutes before" trigger string (negative, ISO 8601). */
+export function triggerForMinutes(minutes: number): string {
+  const m = Math.max(1, Math.round(minutes))
+  const d = Math.floor(m / 1440)
+  const h = Math.floor((m % 1440) / 60)
+  const mm = m % 60
+  let s = '-P'
+  if (d) s += `${d}D`
+  if (h || mm) {
+    s += 'T'
+    if (h) s += `${h}H`
+    if (mm) s += `${mm}M`
+  }
+  return s === '-P' ? '-PT0M' : s
+}
+
+/** Human label for an alarm's negative minutes (e.g. 15 → "15 minutes before"). */
+export function alarmLabelFor(minutes: number): string {
+  const preset = ALARM_PRESETS.find((p) => p.minutes === minutes)
+  if (preset) return preset.label
+  if (minutes <= 0) return 'At time of event'
+  return `${minutes} minutes before`
+}
+
+/** Extract a display minutes value from a stored alarm (clamp negatives to 0). */
+export function alarmMinutesFrom(a?: Alarm | null): number {
+  if (!a) return 0
+  const m = alarmMinutes(a.trigger)
+  return m !== null ? Math.max(0, m) : 0
+}
+
+/* ── Attendee helpers (XER-306 full event dialog) ───────────────────────── */
+
+/** Join an item's attendees into a comma-separated email string for the form. */
+export function attendeesToText(attendees?: Attendee[] | null): string {
+  return (attendees ?? []).map((a) => uriEmail(a.uri)).join(', ')
+}
+
+/** Parse a comma/newline-separated email list into RFC 5545 Attendee[] (deduped). */
+export function parseAttendeeEmails(text: string): Attendee[] {
+  const seen = new Set<string>()
+  const out: Attendee[] = []
+  for (const tok of text.split(/[\s,;]+/)) {
+    const raw = tok.trim()
+    if (!raw) continue
+    const email = raw.replace(/^mailto:/i, '')
+    const lower = email.toLowerCase()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || seen.has(lower)) continue
+    seen.add(lower)
+    out.push(attendee(email))
+  }
+  return out
 }
 
 /* ── Occurrence placement ───────────────────────────────────────────────── */

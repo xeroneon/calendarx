@@ -237,6 +237,82 @@
 .cl-task-pct { font-size: var(--cx-text-xs); color: var(--cx-text-muted); }
 .cl-task-due { font-size: var(--cx-text-xs); color: var(--cx-text-faint); font-variant-numeric: tabular-nums; }
 
+/* ── Toolbar calendar picker (XER-306 multi-calendar) ───────────────────── */
+.cl-cal-picker { display: flex; align-items: center; gap: var(--cx-sp-2); margin-left: var(--cx-sp-2); }
+.cl-cal-dot { width: 10px; height: 10px; border-radius: var(--cx-radius-full); flex-shrink: 0; }
+
+/* ── Click-to-create affordances (XER-306) ──────────────────────────────── */
+.cl-day-head { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.cl-day-add, .cl-col-add {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--cx-text-faint);
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  border-radius: var(--cx-radius-sm);
+  font-size: var(--cx-text-md);
+  opacity: 0;
+  transition: opacity var(--cx-dur-fast) var(--cx-ease-in-out), color var(--cx-dur-fast) var(--cx-ease-in-out), background var(--cx-dur-fast) var(--cx-ease-in-out);
+}
+.cl-day:hover .cl-day-add, .cl-day:focus-within .cl-day-add, .cl-col-head:hover .cl-col-add { opacity: 1; }
+.cl-day-add:hover, .cl-col-add:hover { color: var(--cx-text); background: var(--cx-surface-hover); }
+.cl-col-add { position: absolute; top: 2px; right: 4px; }
+.cl-col-head { position: relative; }
+
+/* ── Recurrence rule builder (XER-306) ──────────────────────────────────── */
+.cl-inline-row { display: flex; align-items: center; gap: var(--cx-sp-2); }
+.cl-num-input { width: 64px; }
+.cl-byday-btn {
+  appearance: none;
+  border: 1px solid var(--cx-border-strong);
+  background: var(--cx-surface);
+  color: var(--cx-text-muted);
+  font: inherit;
+  font-size: var(--cx-text-xs);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--cx-radius-full);
+  transition: background var(--cx-dur-fast) var(--cx-ease-in-out), color var(--cx-dur-fast) var(--cx-ease-in-out), border-color var(--cx-dur-fast) var(--cx-ease-in-out);
+}
+.cl-byday-btn:hover { background: var(--cx-surface-hover); }
+.cl-byday-btn.on { background: var(--cx-accent-600); border-color: var(--cx-accent-600); color: var(--cx-text-inverse); }
+
+/* ── Alarms (XER-306) ───────────────────────────────────────────────────── */
+.cl-alarm-row { border-top: 1px solid var(--cx-border); margin-top: var(--cx-sp-2); padding-top: var(--cx-sp-2); }
+.cl-alarm-list { list-style: none; margin: 0 0 var(--cx-sp-2); padding: 0; display: flex; flex-direction: column; gap: var(--cx-sp-1); }
+.cl-alarm-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--cx-sp-2); }
+.cl-alarm-remove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--cx-text-faint);
+  cursor: pointer;
+  font-size: var(--cx-text-lg);
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--cx-radius-sm);
+}
+.cl-alarm-remove:hover { color: var(--cx-danger, #ef4444); background: var(--cx-surface-hover); }
+.cl-alarm-add {
+  appearance: none;
+  border: 1px solid var(--cx-border-strong);
+  background: var(--cx-surface);
+  color: var(--cx-text-muted);
+  font: inherit;
+  font-size: var(--cx-text-xs);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--cx-radius-full);
+  transition: background var(--cx-dur-fast) var(--cx-ease-in-out), color var(--cx-dur-fast) var(--cx-ease-in-out);
+}
+.cl-alarm-add:hover:not(:disabled) { background: var(--cx-surface-hover); color: var(--cx-text); }
+.cl-alarm-add:disabled { opacity: 0.5; cursor: default; }
+
 /* ── Empty / status ──────────────────────────────────────────────────────── */
 .cl-empty { padding: var(--cx-sp-8); color: var(--cx-text-muted); font-size: var(--cx-text-sm); text-align: center; }
 .cl-muted { color: var(--cx-text-muted); font-size: var(--cx-text-sm); }
