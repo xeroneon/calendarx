@@ -6,8 +6,8 @@
  * the UI and the service stay in lock-step. All day-window math is Monday-first
  * (matches the recurrence engine's WKST=MO default).
  */
-import { attendee, uriEmail } from '@calendarx/calendar'
-import type { Alarm, Attendee, ByDayEntry, CalTime, HMS, RecurrenceRule, Weekday, YMD, Occurrence } from '@calendarx/calendar'
+import { attendee, isTaskComplete, uriEmail } from '@calendarx/calendar'
+import type { Alarm, Attendee, ByDayEntry, CalTime, HMS, RecurrenceRule, Weekday, YMD, Occurrence, CalendarTask } from '@calendarx/calendar'
 
 export type { HMS, YMD, Weekday } from '@calendarx/calendar'
 export type { ByDayEntry } from '@calendarx/calendar'
@@ -294,6 +294,57 @@ export function parseAttendeeEmails(text: string): Attendee[] {
     out.push(attendee(email))
   }
   return out
+}
+
+/* ── Task list helpers (XER-307 Tasks UI) ──────────────────────────────── */
+
+/** True when a task records a DUE (or DTSTART) — lets dated tasks float first. */
+export function hasTaskDue(t: CalendarTask): boolean {
+  return !!(t.due ?? t.dtstart)
+}
+
+/**
+ * Sortable key for a task's due/start instant ('' when none → sorts last within
+ * its group). Date-only and dated DUE both compare by calendar day first, then
+ * by wall-clock time when present, so overdue/pending tasks order predictably.
+ */
+export function taskDueKey(t: CalendarTask): string {
+  const d = t.due ?? t.dtstart
+  if (!d) return ''
+  const base = ymdKey(d.date)
+  return d.kind === 'date' ? `${base}|` : `${base}|${pad2(d.time.hour)}:${pad2(d.time.minute)}`
+}
+
+/**
+ * Filter tasks by a case-insensitive substring on summary. An empty query keeps
+ * every task; completion state does NOT hide a matching task.
+ */
+export function filterTasks(tasks: CalendarTask[], q: string): CalendarTask[] {
+  const query = q.trim().toLowerCase()
+  if (!query) return tasks
+  return tasks.filter((t) => (t.summary ?? '').toLowerCase().includes(query))
+}
+
+/**
+ * Sort the task list (XER-307): open tasks first, then completed, then cancelled;
+ * within the open group, tasks with a due/start date float ahead in Earliest-due
+ * order. Stable for identical keys (Array#sort is stable in modern engines).
+ */
+export function sortTasks(tasks: CalendarTask[]): CalendarTask[] {
+  const group = (t: CalendarTask): number => {
+    if (t.status === 'CANCELLED') return 3
+    if (isTaskComplete(t)) return 2
+    return hasTaskDue(t) ? 0 : 1
+  }
+  return [...tasks].sort((a, b) => {
+    const ga = group(a)
+    const gb = group(b)
+    if (ga !== gb) return ga - gb
+    const da = taskDueKey(a)
+    const db = taskDueKey(b)
+    if (da && db) return da.localeCompare(db)
+    return da ? -1 : db ? 1 : 0
+  })
 }
 
 /* ── Occurrence placement ───────────────────────────────────────────────── */

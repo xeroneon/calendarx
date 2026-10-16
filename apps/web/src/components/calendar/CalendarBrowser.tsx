@@ -15,6 +15,7 @@ import {
   attendeesToText,
   buildRule,
   calTimeFromInputs,
+  filterTasks,
   formatHms,
   hmsFromInput,
   monthGrid,
@@ -25,6 +26,7 @@ import {
   parseYmdKey,
   recurLabel,
   ruleToState,
+  sortTasks,
   timeRangeLabel,
   todayYmd,
   triggerForMinutes,
@@ -271,21 +273,7 @@ export function CalendarBrowser({ view = 'month', date }: CalendarBrowserProps):
 
   const taskList = React.useMemo<CalendarTask[]>(() => {
     const tasks = items.filter((i) => i.kind === 'task') as CalendarTask[]
-    const q = filter.trim().toLowerCase()
-    const filtered = q ? tasks.filter((t) => (t.summary ?? '').toLowerCase().includes(q)) : tasks
-    const score = (t: CalendarTask): number => {
-      if (t.status === 'COMPLETED') return 2
-      const due = t.due
-      return due ? (due.kind === 'date' ? 0 : 1) : 3
-    }
-    return [...filtered].sort((a, b) => {
-      const sa = score(a)
-      const sb = score(b)
-      if (sa !== sb) return sa - sb
-      const da = calTimeToForm(a.due ?? a.dtstart)
-      const db = calTimeToForm(b.due ?? b.dtstart)
-      return (da && db ? ymdKey(da.ymd).localeCompare(ymdKey(db.ymd)) : 0)
-    })
+    return sortTasks(filterTasks(tasks, filter))
   }, [items, filter])
 
   /* ---- mutations ---------------------------------------------------------- */

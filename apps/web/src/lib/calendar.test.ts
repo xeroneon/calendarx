@@ -12,8 +12,24 @@ import {
   alarmMinutesFrom,
   attendeesToText,
   parseAttendeeEmails,
+  filterTasks,
+  sortTasks,
+  hasTaskDue,
+  taskDueKey,
 } from './calendar'
 import { attendee } from '@calendarx/calendar'
+import type { CalendarTask, CalTime } from '@calendarx/calendar'
+
+/** Minimal task builder for tests. */
+function task(over: Partial<CalendarTask> & { uid: string; summary: string }): CalendarTask {
+  return { kind: 'task', ...over } as CalendarTask
+}
+function dateDue(y: number, m: number, d: number): CalTime {
+  return { kind: 'date', date: { year: y, month: m, day: d } }
+}
+function utcDue(y: number, m: number, d: number, h: number, min: number): CalTime {
+  return { kind: 'utc', date: { year: y, month: m, day: d }, time: { hour: h, minute: min, second: 0 } }
+}
 
 describe('@calendarx/web calendar helpers', () => {
   it('parses a YYYY-MM-DD key', () => {
@@ -119,5 +135,57 @@ describe('attendee helpers (XER-306)', () => {
   it('tolerates empty / whitespace input', () => {
     expect(parseAttendeeEmails('')).toEqual([])
     expect(parseAttendeeEmails('   ,  ')).toEqual([])
+  })
+})
+
+describe('task list helpers (XER-307)', () => {
+  it('hasTaskDue reflects a DUE or DTSTART', () => {
+    expect(hasTaskDue(task({ uid: 'a', summary: 'a', due: dateDue(2026, 10, 1) }))).toBe(true)
+    expect(hasTaskDue(task({ uid: 'b', summary: 'b', dtstart: utcDue(2026, 10, 2, 9, 0) }))).toBe(true)
+    expect(hasTaskDue(task({ uid: 'c', summary: 'c' }))).toBe(false)
+  })
+
+  it('taskDueKey orders by day then time, empty for undated', () => {
+    expect(taskDueKey(task({ uid: 'a', summary: 'a', due: dateDue(2026, 10, 5) }))).toBe('2026-10-05|')
+    expect(taskDueKey(task({ uid: 'b', summary: 'b', due: utcDue(2026, 10, 5, 9, 30) }))).toBe('2026-10-05|09:30')
+    expect(taskDueKey(task({ uid: 'c', summary: 'c' }))).toBe('')
+  })
+
+  it('filterTasks matches summary case-insensitively', () => {
+    const tasks = [
+      task({ uid: 'a', summary: 'Ship CalendarX' }),
+      task({ uid: 'b', summary: 'fix login' }),
+    ]
+    expect(filterTasks(tasks, '')).toHaveLength(2)
+    expect(filterTasks(tasks, 'SHIP').map((t) => t.uid)).toEqual(['a'])
+    expect(filterTasks(tasks, '  cal  ').map((t) => t.uid)).toEqual(['a'])
+    expect(filterTasks(tasks, 'zzz')).toEqual([])
+  })
+
+  it('sortTasks puts open (dated first, earliest due) then completed then cancelled', () => {
+    const tasks = [
+      task({ uid: 'none', summary: 'no due', status: 'NEEDS-ACTION' }),
+      task({ uid: 'done', summary: 'done', status: 'COMPLETED', percentComplete: 100 }),
+      task({ uid: 'late', summary: 'late', status: 'NEEDS-ACTION', due: utcDue(2026, 9, 1, 8, 0) }),
+      task({ uid: 'soon', summary: 'soon', status: 'NEEDS-ACTION', due: dateDue(2026, 10, 1) }),
+      task({ uid: 'cancelled', summary: 'cancelled', status: 'CANCELLED' }),
+      task({ uid: 'mid', summary: 'mid', status: 'IN-PROCESS', due: utcDue(2026, 9, 15, 17, 0) }),
+    ]
+    const order = sortTasks(tasks).map((t) => t.uid)
+    // open dated, earliest due first: late(09-01) → mid(09-15) → soon(10-01)
+    expect(order.slice(0, 3)).toEqual(['late', 'mid', 'soon'])
+    expect(order[3]).toBe('none') // open undated
+    expect(order[4]).toBe('done') // completed
+    expect(order[5]).toBe('cancelled') // cancelled last
+  })
+
+  it('sortTasks leaves task arrays unmodified (returns a copy)', () => {
+    const tasks = [
+      task({ uid: 'b', summary: 'b' }),
+      task({ uid: 'a', summary: 'a', status: 'COMPLETED' }),
+    ]
+    const before = tasks.map((t) => t.uid).join(',')
+    sortTasks(tasks)
+    expect(tasks.map((t) => t.uid).join(',')).toBe(before)
   })
 })
