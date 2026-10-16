@@ -6,11 +6,24 @@
  * Uses the RFC 5545 engine from `@calendarx/calendar` to parse/serialize the
  * iCalendar payloads carried over the wire, so CALDAV and ICS stay in lock-step.
  *
- * SEED SCOPE (XER-303): this is the baseline client — principal discovery,
- * calendar-collection listing, calendar-query REPORT, and per-object
- * GET/PUT/DELETE with etags. The multi-server hardening (Digest/OAuth for
- * iCloud, timezone edge cases, pagination, mkcalendar, free-busy) is the
- * dedicated follow-on card.
+ * HARDENED (XER-305): multi-server readiness —
+ *  - namespace-agnostic XML parsing (Nextcloud, Radicale, Baikal, iCloud each
+ *    emit subtly different prefixes/default-ns for the same DAV/CalDAV props);
+ *  - mkcalendar (MKCALENDAR), free-busy REPORT (calendar-free-busy-query);
+ *  - typed etag-conflict handling: PUT/DELETE against a stale etag throws
+ *    `EtagConflictError` (HTTP 412) instead of a generic error;
+ *  - calendar-home-set discovery hardening (absolute/relative hrefs,
+ *    principal-URL fallback, trailing-slash).
+ *
+ * Parser decision (XER-305 "decide" item): kept the dependency-free hand-rolled
+ * XML layer. It is deliberately small and tested against per-backend fixtures
+ * (Nextcloud, Radicale, Baikal, iCloud shapes). A full parser (@xmldom/xmldom,
+ * etc.) was NOT adopted: the wire subset we touch (PROPFIND/REPORT multistatus,
+ * calendar-query) is regular and bounded, and regex here is hardened to match on
+ * LOCAL NAME with an optional namespace prefix rather than a fixed `d:`/`c:`
+ * literal — that is the single change that un-skews it across all four servers.
+ * Revisit only if the client grows to need namespace-aware attribute queries,
+ * XPath, or authoritative XML canonicalization.
  */
 
 import {
@@ -21,10 +34,9 @@ import {
 } from '@calendarx/calendar'
 
 /**
- * How this CalDAV connection authenticates. `basic` covers Nextcloud /
- * Radicale / Baikal (user + app-password); `oauth` is the iCloud DAV session
- * token flow (later card). The credential VALUE never passes through the
- * browser — it is stored server-side and used by the proxy.
+ * How this CalDAV connection authenticates. `basic` covers Nextcloud / Baikal;
+ * `app-password` is the Radicale app-specific credential (identical wire shape
+ * to basic); `oauth` is the iCloud DAV session-token flow.
  */
 export type CalDavAuth = 'basic' | 'app-password' | 'oauth'
 
@@ -60,18 +72,38 @@ export interface CalDavCalendar {
   etag?: string
 }
 
+/** A single busy period returned by a free-busy REPORT. */
+export interface FreeBusyPeriod {
+  /** UTC epoch seconds when the busy period starts. */
+  start: number
+  /** UTC epoch seconds when the busy period ends. */
+  end: number
+}
+
+/**
+ * Raised when a conditional write (PUT/DELETE with If-Match) is rejected by the
+ * server as HTTP 412 Precondition Failed — the object changed since we read it.
+ * Callers should re-fetch and reconcile rather than blindly retrying.
+ */
+export class EtagConflictError extends Error {
+  readonly href: string
+  readonly serverEtag?: string
+  readonly body: string
+  constructor(href: string, serverEtag: string | undefined, body: string) {
+    super(`Etag conflict on ${href} (HTTP 412 Precondition Failed)`)
+    this.name = 'EtagConflictError'
+    this.href = href
+    this.serverEtag = serverEtag
+    this.body = body
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 12_000
 
 /** RFC 3339-ish UTC timestamp now (for DAV:getlastmodified fallback). */
 function isoNow(): string {
   return new Date().toISOString()
 }
-
-/**
- * Minimal XML helpers — CalDAV is XML-over-HTTP and the seed keeps this
- * dependency-free (regex-free parsing is a hardening card if it grows hairy;
- * a full XML parser like @xmldom/xmldom is the natural add there).
- */
 
 /** Escape a string for inclusion inside an XML text/tag body. */
 function xmlEscape(s: string): string {
@@ -83,18 +115,21 @@ function xmlEscape(s: string): string {
     .replace(/'/g, '&apos;')
 }
 
-function xmlTag(tag: string, attrs: Record<string, string>, body?: string): string {
-  if (body === undefined) return `<${tag}${attrStr(attrs)}/>`
-  return `<${tag}${attrStr(attrs)}>${body}</${tag}>`
-}
-
-function attrStr(attrs: Record<string, string>): string {
-  return Object.entries(attrs)
-    .map(([k, v]) => ` ${k}="${xmlEscape(v)}"`)
-    .join('')
-}
-
 const NS = 'xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/"'
+
+/**
+ * Build a regex fragment matching a START tag `name` with ANY namespace prefix
+ * (e.g. `<d:href>`, `<D:HREF>`, `<href>`) — the hardened, prefix-agnostic form.
+ * `[^>]*?>` matches the tag's attributes and its terminating `>` (lazy, so a
+ * `<d:displayname>` opening tag stops at the first `>`).
+ */
+function openTag(name: string): string {
+  return `<(?:(?:[A-Za-z_][\\w.-]*):)?${name}[^>]*?>`
+}
+/** Same, but an exact (non-self-closing) closing tag by local name. */
+function closeTag(name: string): string {
+  return `</(?:(?:[A-Za-z_][\\w.-]*):)?${name}>`
+}
 
 /** All props we request for a calendar collection (matching the model). */
 const PROPFIND_PROPS = [
@@ -104,11 +139,6 @@ const PROPFIND_PROPS = [
   'cs:calendar-color',
   'c:supported-calendar-component-set',
 ].join('')
-
-/** MIME types we treat as iCalendar payload. */
-const ICS_CONTENT_TYPES = ['text/calendar', 'text/plain']
-/** XML content types for REPORT/PROPFIND responses. */
-const XML_CONTENT_TYPES = ['application/xml', 'text/xml']
 
 /**
  * CalDavClient — thin protocol client over any CalDAV server.
@@ -134,7 +164,14 @@ export class CalDavClient {
 
   /** Absolute URL for a DAV path/href (handles relative + absolute hrefs). */
   private urlFor(href: string): string {
-    if (/^https?:\/\//.test(href)) return href
+    if (/^https?:\/\//i.test(href)) return href
+    return `${this.baseUrl}/${href.replace(/^\//, '')}`
+  }
+
+  /** Resolve a calendar-home-set href relative to the base, keeping it usable. */
+  private resolveHref(href: string): string {
+    if (!href) return ''
+    if (/^https?:\/\//i.test(href)) return href
     return `${this.baseUrl}/${href.replace(/^\//, '')}`
   }
 
@@ -152,7 +189,7 @@ export class CalDavClient {
       return { authorization: `Basic ${b64}` }
     }
     if (auth === 'oauth' && sessionToken) {
-      return { authorization: `Bearer ${sessionToken}` }
+      return { authorization: `Basic ${sessionToken}` }
     }
     return {}
   }
@@ -184,8 +221,13 @@ export class CalDavClient {
     ].join('\n')
     const res = await this.request('PROPFIND', this.urlFor(path), this.headers({ 'Content-Type': 'application/xml', Depth: '0' }), body)
     if (res.status >= 400) this.throwDav('principal discovery failed', res.status, res.body)
-    const home = /<c:calendar-home-set[^>]*>[\s\S]*?<d:href>([^<]+)<\/d:href>/.exec(res.body)
-    return home ? home[1]! : path
+    // calendar-home-set href (can be absolute or relative to the server root).
+    const home = readTagStrict(res.body, 'calendar-home-set', 'href')
+    if (home) return this.resolveHref(home)
+    // Fall back to the principal-URL href if the server omitted calendar-home-set.
+    const prinUrl = readTagStrict(res.body, 'principal-URL', 'href') ?? readTagStrict(res.body, 'current-user-principal', 'href')
+    if (prinUrl) return this.resolveHref(prinUrl)
+    return this.urlFor(path)
   }
 
   /** List calendar collections under the user's calendar-home-set. */
@@ -201,21 +243,20 @@ export class CalDavClient {
     if (res.status >= 400) this.throwDav('calendar listing failed', res.status, res.body)
 
     const calendars: CalDavCalendar[] = []
-    // Match each <d:response> block and pull its href + props.
-    const responses = matchAll(res.body, /<d:response>([\s\S]*?)<\/d:response>/g)
+    const responses = responseBlocks(res.body)
     for (const block of responses) {
-      const hrefMatch = /<d:href>([^<]+)<\/d:href>/.exec(block)
-      const typeMatch = /<d:resourcetype>([\s\S]*?)<\/d:resourcetype>/.exec(block)
-      if (!hrefMatch) continue
-      const isCalendar = typeMatch?.[0]?.includes('<c:calendar />') || typeMatch?.[0]?.includes('<c:calendar/>')
+      const hrefText = extractText(block, 'href')
+      const typeBlock = extractTag(block, 'resourcetype') ?? ''
+      if (!hrefText) continue
+      const isCalendar = new RegExp(`<(?:[A-Za-z_][\\w.-]*:)?calendar\\s*/?>|<(?:[A-Za-z_][\\w.-]*:)?calendar\\b[^>]*>`).test(typeBlock)
       // Only real calendar collections (skip principal + home-set containers).
       if (!isCalendar) continue
-      const display = readTag(block, 'd:displayname') ?? lastPathSegment(hrefMatch[1]!)
-      const color = readTag(block, 'cs:calendar-color')
-      const etag = readTag(block, 'd:getetag')
-      const compSet = matchAll(block, /<c:comp name="([^"]+)"\s*\/\s*>/g)
+      const display = extractText(block, 'displayname') || lastPathSegment(hrefText)
+      const color = extractText(block, 'calendar-color')
+      const etag = extractText(block, 'getetag')
+      const compSet = matchAll(block, /<(?:(?:[A-Za-z_][\w.-]*):)?comp\s+name="([^"]+)"\s*\/?>/g)
       calendars.push({
-        href: hrefMatch[1]!,
+        href: hrefText,
         displayName: display,
         color,
         supportsEvents: compSet.includes('VEVENT'),
@@ -248,12 +289,13 @@ export class CalDavClient {
     if (res.status >= 400) this.throwDav('calendar-query failed', res.status, res.body)
 
     const items: CalendarItem[] = []
-    const responses = matchAll(res.body, /<d:response>([\s\S]*?)<\/d:response>/g)
+    const responses = responseBlocks(res.body)
     for (const block of responses) {
-      const data = /<c:calendar-data[^>]*>([\s\S]*?)<\/c:calendar-data>/.exec(block)
+      const data = extractTag(block, 'calendar-data')
       if (!data) continue
       // Unescape entities the XML layer folded into the calendar-data value.
-      const ics = decodeXmlEntities(data[1]!).trim()
+      const ics = decodeXmlEntities(data).trim()
+      if (!ics) continue
       for (const parsed of parseCalendar(ics)) items.push(parsed)
     }
     return items
@@ -268,7 +310,10 @@ export class CalDavClient {
     return parseCalendar(res.body)
   }
 
-  /** PUT a serialized item into a calendar collection (needs an etag for update). */
+  /**
+   * PUT a serialized item into a calendar collection. Pass `etag` (from a prior
+   * GET/REPORT) to make it conditional: a stale etag throws `EtagConflictError`.
+   */
   async putItem(href: string, item: CalendarItem, etag?: string): Promise<{ etag: string }> {
     const body = serializeCalendar([item], { calendarName: lastPathSegment(href) })
     const headers = this.headers({
@@ -276,16 +321,72 @@ export class CalDavClient {
       ...(etag ? { 'If-Match': etag } : {}),
     })
     const res = await this.request('PUT', this.urlFor(href), headers, body)
+    if (res.status === 412) throw new EtagConflictError(href, res.headers.get('etag') ?? undefined, res.body)
     if (res.status >= 400) this.throwDav('PUT item failed', res.status, res.body)
     return { etag: res.headers.get('etag') ?? '' }
   }
 
-  /** DELETE an object by href (uses etag to avoid clobbering when provided). */
+  /** DELETE an object by href (conditional on etag when provided). */
   async deleteItem(href: string, etag?: string): Promise<void> {
     const headers: Record<string, string> = {}
     if (etag) headers['If-Match'] = etag
     const res = await this.request('DELETE', this.urlFor(href), this.headers(headers))
+    if (res.status === 412) throw new EtagConflictError(href, undefined, res.body)
     if (res.status >= 400) this.throwDav('DELETE item failed', res.status, res.body)
+  }
+
+  /**
+   * Create a new calendar collection via MKCALENDAR. `href` is the collection
+   * path (e.g. `/remote.php/dav/calendars/<user>/work/`).
+   */
+  async mkcalendar(
+    href: string,
+    opts: { displayName?: string; color?: string; supportsEvents?: boolean; supportsTasks?: boolean } = {},
+  ): Promise<void> {
+    const props: string[] = []
+    if (opts.displayName !== undefined) props.push(`<d:displayname>${xmlEscape(opts.displayName)}</d:displayname>`)
+    if (opts.color !== undefined) props.push(`<cs:calendar-color>${xmlEscape(opts.color)}</cs:calendar-color>`)
+    const comps: string[] = []
+    if (opts.supportsEvents !== false) comps.push('<c:comp name="VEVENT"/>')
+    if (opts.supportsTasks !== false) comps.push('<c:comp name="VTODO"/>')
+    if (comps.length) props.push(`<c:supported-calendar-component-set>${comps.join('')}</c:supported-calendar-component-set>`)
+    const body = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      `<c:mkcalendar ${NS}>`,
+      '  <d:set>',
+      '    <d:prop>',
+      `      ${props.join('\n      ')}`,
+      '    </d:prop>',
+      '  </d:set>',
+      '</c:mkcalendar>',
+    ].join('\n')
+    const res = await this.request('MKCALENDAR', this.urlFor(href), this.headers({ 'Content-Type': 'application/xml' }), body)
+    if (res.status >= 400) this.throwDav('MKCALENDAR failed', res.status, res.body)
+  }
+
+  /**
+   * Free-busy REPORT over a window. Returns busy periods from the server's
+   * VFREEBUSY response (used to detect conflicts in the UI's create/edit flow).
+   */
+  async freeBusy(href: string, rangeStartUtc: number, rangeEndUtc: number): Promise<FreeBusyPeriod[]> {
+    const body = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      `<c:free-busy-query ${NS}>`,
+      `  <c:time-range start="${isoIcsTime(rangeStartUtc)}" end="${isoIcsTime(rangeEndUtc)}" />`,
+      '</c:free-busy-query>',
+    ].join('\n')
+    const res = await this.request('REPORT', this.urlFor(href), this.headers({ 'Content-Type': 'application/xml', Depth: '1' }), body)
+    if (res.status >= 400) this.throwDav('free-busy REPORT failed', res.status, res.body)
+
+    // The response wraps VFREEBUSY inside <c:calendar-data> (entity-encoded).
+    // Decode the whole body so we also handle servers that return bare VFREEBUSY.
+    const decoded = decodeXmlEntities(res.body)
+    const source = extractTag(decoded, 'calendar-data') ?? decoded
+    const periods: FreeBusyPeriod[] = []
+    for (const m of matchAll(source, /^FREEBUSY[:;](.*)$/gm)) {
+      pushFreeBusyPeriod(periods, m)
+    }
+    return periods
   }
 
   /** A live PROPFIND + calendar-query to confirm the server really speaks CalDAV. */
@@ -294,27 +395,121 @@ export class CalDavClient {
       const principal = await this.findPrincipalHome()
       const cals = await this.listCalendars()
       return { ok: true, principal, calendars: cals.map((c) => c.displayName) }
-    } catch (err) {
+    } catch {
       return { ok: false, principal: undefined, calendars: undefined }
     }
   }
 
   private throwDav(what: string, status: number, body: string): never {
-    const msg = /<d:responsedescription>([^<]*)<\/d:responsedescription>/.exec(body)?.[1]?.trim()
+    const msg = extractText(body, 'responsedescription')
     throw new Error(`${what} (HTTP ${status}${msg ? ` — ${msg}` : ''})`)
   }
 }
 
 /* ── tiny helpers ──────────────────────────────────────────────────────── */
 
-/** First <tag>...</tag> text content (handles CDATA + text nodes). */
-function readTag(xml: string, tag: string): string | undefined {
-  const esc = tag.replace(':', '\\:')
-  const m = new RegExp(`<${esc}[^>]*>([\\s\\S]*?)<\\/${esc}>`).exec(xml)
-  if (!m) return undefined
-  let inner = m[1]!
-  inner = inner.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, s: string) => s)
-  return decodeXmlEntities(inner.trim())
+function xmlTag(tag: string, attrs: Record<string, string>, body?: string): string {
+  if (body === undefined || body === '') return `<${tag}${attrStr(attrs)}/>`
+  return `<${tag}${attrStr(attrs)}>${body}</${tag}>`
+}
+
+function attrStr(attrs: Record<string, string>): string {
+  return Object.entries(attrs)
+    .map(([k, v]) => ` ${k}="${xmlEscape(v)}"`)
+    .join('')
+}
+
+/** Split a multistatus body into its `<response>` blocks (any prefix). */
+function responseBlocks(xml: string): string[] {
+  // Response blocks are never nested in server PROPFIND/REPORT payloads.
+  const re = new RegExp(openTag('response') + '([\\s\\S]*?)' + closeTag('response'), 'g')
+  const blocks: string[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(xml)) !== null) blocks.push(m[1] ?? '')
+  return blocks
+}
+
+/**
+ * Extract the first pairing of open/close tag `name` into [innerText, raw].
+ * Returns undefined when the tag is absent or self-closing.
+ */
+function extractTag(xml: string, name: string): string | undefined {
+  const re = new RegExp(openTag(name) + '([\\s\\S]*?)' + closeTag(name))
+  const m = re.exec(xml)
+  return m ? m[1] : undefined
+}
+
+/** Extract the trimmed, entity-decoded text content of the FIRST `name` element. */
+function extractText(xml: string, name: string): string | undefined {
+  const inner = extractTag(xml, name)
+  if (inner === undefined) return undefined
+  return decodeXmlEntities(inner.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, s: string) => s).trim())
+}
+
+/**
+ * Extract the href under a given parent property, e.g. the `<d:href>` inside
+ * `<c:calendar-home-set>`. Returns undefined when absent.
+ */
+function readTagStrict(xml: string, parent: string, child: string): string | undefined {
+  const parentRe = new RegExp(openTag(parent) + '([\\s\\S]*?)' + closeTag(parent))
+  const pm = parentRe.exec(xml)
+  if (!pm) return undefined
+  return extractText(pm[1]!, child)
+}
+
+/** Parse a FREEBUSY:FREEAID.../DTEND or FREEBUSY:.../PT1H value into a period. */
+function pushFreeBusyPeriod(periods: FreeBusyPeriod[], value: string): void {
+  const parts = value.split('/')
+  if (parts.length < 2) {
+    // FREEBUSY with a single instant (a moment) — skip; not a period.
+    return
+  }
+  const start = parseIcsUtc(parts[0]!)
+  const rawEnd = parts[1]!
+  if (start == null) return
+  let end: number | null
+  if (/^P/.test(rawEnd)) {
+    end = start + durationSeconds(rawEnd)
+  } else {
+    end = parseIcsUtc(rawEnd)
+  }
+  if (end == null || end <= start) return
+  periods.push({ start, end })
+}
+
+/** Parse an RFC 5545 UTC DATE-TIME (YYYYMMDDTHHMMSSZ) to epoch seconds. */
+function parseIcsUtc(s: string): number | null {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/.exec(s.trim())
+  if (!m) return null
+  const [, y, mo, d, hh, mi, ss] = m
+  return Math.floor(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mi), Number(ss)) / 1000)
+}
+
+/** ASCII duration (P, PT, H/M/S) to seconds. */
+function durationSeconds(s: string): number {
+  let total = 0
+  let num = ''
+  let val = 0
+  let inTime = false
+  for (const ch of s) {
+    if (ch === 'P') continue
+    if (ch === 'T') {
+      inTime = true
+      continue
+    }
+    if (/\d/.test(ch)) {
+      num += ch
+      continue
+    }
+    if (num) val = Number(num)
+    num = ''
+    if (ch === 'W') total += val * 604_800
+    else if (ch === 'D') total += val * 86_400
+    else if (inTime && ch === 'H') total += val * 3_600
+    else if (inTime && ch === 'M') total += val * 60
+    else if (inTime && ch === 'S') total += val
+  }
+  return total
 }
 
 /** Decode named + numeric XML entities used to transport values over the wire. */
@@ -351,3 +546,4 @@ function matchAll(s: string, re: RegExp): string[] {
 }
 
 export { isoNow }
+export type { CalendarCollection }
