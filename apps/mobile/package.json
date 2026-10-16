@@ -1,0 +1,22 @@
+{
+  "name": "@calendarx/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'mobile: web app is served by apps/web (Capacitor wrap lives here)'",
+    "build": "echo 'mobile: no native build in repo (APK built by CI release-android.yml)'",
+    "typecheck": "echo 'mobile: no TS yet'",
+    "test": "echo 'mobile: no tests yet'",
+    "lint": "echo 'mobile: no lint yet'",
+    "cap:sync": "cap sync",
+    "cap:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}
