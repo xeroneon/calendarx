@@ -133,11 +133,11 @@ function closeTag(name: string): string {
 
 /** All props we request for a calendar collection (matching the model). */
 const PROPFIND_PROPS = [
-  'd:displayname',
-  'd:resourcetype',
-  'd:getetag',
-  'cs:calendar-color',
-  'c:supported-calendar-component-set',
+  '<d:displayname/>',
+  '<d:resourcetype/>',
+  '<d:getetag/>',
+  '<cs:calendar-color/>',
+  '<c:supported-calendar-component-set/>',
 ].join('')
 
 /**
@@ -153,7 +153,11 @@ export class CalDavClient {
   private readonly timeoutMs: number
 
   constructor(config: CalDavConnectionConfig, options: CalDavServerOptions = {}) {
-    this.config = { principalPath: 'calendars/', ...config }
+    // Default principal discovery to the base URL root (RFC 4791) rather than a
+    // Nextcloud-style `calendars/` suffix: Radicale serves current-user-principal
+    // at `/`, and appending `calendars/` makes it 403 ("not a CalDAV endpoint").
+    // Callers targeting a sub-path (e.g. remote.php/dav) pass principalPath explicitly.
+    this.config = { principalPath: '', ...config }
     this.fetchImpl = options.fetchImpl ?? fetch
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   }
