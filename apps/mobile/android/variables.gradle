@@ -13,4 +13,8 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // Native connect shell deps.
+    kotlinVersion = '2.0.21'
+    androidxSecurityCryptoVersion = '1.1.0-alpha06'
+    androidxCoreKtxVersion = '1.17.0'
 }

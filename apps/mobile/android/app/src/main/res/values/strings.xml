@@ -4,4 +4,17 @@
     <string name="title_activity_main">CalendarX</string>
     <string name="package_name">dev.calendarx.app</string>
     <string name="custom_url_scheme">dev.calendarx.app</string>
+
+    <!-- Native config shell / onboarding -->
+    <string name="connect_title">Connect to CalendarX</string>
+    <string name="connect_subtitle">Enter the address of your self-hosted CalendarX server. You run the server, we just connect to it — your data stays on your own instance.</string>
+    <string name="connect_url_hint">https://your-server.example.com</string>
+    <string name="connect_status_idle">Press “Test connection” to verify your server, then connect.</string>
+    <string name="connect_testing">Testing connection…</string>
+    <string name="connect_test">Test connection</string>
+    <string name="connect_connect">Connect &amp; open</string>
+    <string name="connect_open">Open CalendarX</string>
+    <string name="connect_enter_url">Enter a server URL first.</string>
+    <string name="connect_test_first">Run “Test connection” successfully before connecting.</string>
+    <string name="connect_already_configured">Connected to %s. Test again to change, or open to continue.</string>
 </resources>

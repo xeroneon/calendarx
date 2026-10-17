@@ -11,6 +11,26 @@ through Obtainium without redoing the setup.
 - appId: dev.calendarx.app  appName: CalendarX
 - Baked live origin: `CALENDARX_ANDROID_ORIGIN` (fallback https://calendarx.xeroneon.dev)
 
+## Native connect shell (self-hosted onboarding, XER-312)
+
+The Android app ships a **first-class NATIVE onboarding screen** (not the webview),
+because every distributed user self-hosts their own CalendarX server. Flow:
+
+- `ConnectActivity` (launcher) lets the user paste/type their server URL. A demo
+  default origin is prefilled; `Test connection` runs an in-app health check
+  (`GET /api/health`, must return `name:"calendarx"`) plus `.well-known/caldav`
+  discovery via `ServerProbe.kt`.
+- On connect, `InstanceStore.kt` persists the verified origin with
+  **EncryptedSharedPreferences** (Android Keystore backed, AES256).
+- `MainActivity` (Capacitor) overrides `load()` to build a CapConfig pointing the
+  WebView at the persisted origin, reusing the full web UI. The baked origin is
+  only the fallback for a still-unconfigured install.
+
+Kotlin sources live under `android/app/src/main/java/dev/calendarx/app/`
+(`ConnectActivity.kt`, `InstanceStore.kt`, `ServerProbe.kt`). Build deps:
+`kotlin-gradle-plugin` (root build.gradle), `androidx.security:security-crypto`,
+`core-ktx` (app build.gradle).
+
 ## Files to land
 
 1. `apps/mobile/capacitor.config.ts` — the rendered Capacitor config.

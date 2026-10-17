@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+// Kotlin for the native config shell (ConnectActivity, InstanceStore, ServerProbe).
+apply plugin: 'kotlin-android'
 
 android {
     namespace = "dev.calendarx.app"
@@ -50,8 +52,22 @@ repositories {
     }
 }
 
+// Match the Kotlin compile target to the Java 21 toolchain used by AGP 8.x.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
+
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+
+    // Kotlin stdlib + AndroidX extensions for the native connect shell.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+    implementation "androidx.core:core-ktx:$androidxCoreKtxVersion"
+    // EncryptedSharedPreferences (Android Keystore backed) for the server instance.
+    implementation "androidx.security:security-crypto:$androidxSecurityCryptoVersion"
+
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"

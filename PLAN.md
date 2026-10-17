@@ -60,6 +60,9 @@ calendarx/                      (pnpm + Turborepo, TS, AGPL-3.0)
 
 ## 5. Gap analysis → follow-ons (filed XER-305..XER-312, all parked at backlog)
 
+> **Status 2026-10-16→17:** user said go (XER-303 thread); XER-305..310 built + merged,
+> and **XER-312 (native connect shell) built on this card**. All follow-ons now done.
+
 | Card | Scope | Dependency |
 |------|-------|-----------|
 | **XER-305 CalDAV client hardening** | multi-server coverage (Radicale primary/Nextcloud/Baikal/iCloud), auth (Basic/Digest/app-password + OAuth iCloud), timezone edges, pagination/etags | seed `packages/caldav` |
