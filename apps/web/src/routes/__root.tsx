@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
-import { Link, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Link,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+} from '@tanstack/react-router'
 import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
@@ -29,27 +35,46 @@ export const Route = createRootRouteWithContext<{
   }),
   notFoundComponent: () => <NotFound />,
   errorComponent: ({ error, reset }) => <DefaultCatchBoundary error={error} reset={reset} />,
-  component: () => (
-    <div className="cl-app">
-      <header className="cl-brandbar">
-        <Link to="/" className="cl-brand">
-          CalendarX
-        </Link>
-        <nav className="cl-brandnav">
-          <Link to="/calendar" className="cl-brandlink">
-            Calendar
-          </Link>
-          <Link to="/connect" className="cl-brandlink">
-            Connection
-          </Link>
-        </nav>
-      </header>
-      <main className="cl-main">
-        <React.Suspense fallback={<div className="cl-empty">Loading…</div>}>
-          <Outlet />
-        </React.Suspense>
-      </main>
-      <Scripts />
-    </div>
-  ),
+  component: RootComponent,
 })
+
+function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  )
+}
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang='en'>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <div className='cl-app'>
+          <header className='cl-brandbar'>
+            <Link to='/' className='cl-brand'>
+              CalendarX
+            </Link>
+            <nav className='cl-brandnav'>
+              <Link to='/calendar' className='cl-brandlink'>
+                Calendar
+              </Link>
+              <Link to='/connect' className='cl-brandlink'>
+                Connection
+              </Link>
+            </nav>
+          </header>
+          <main className='cl-main'>
+            <React.Suspense fallback={<div className='cl-empty'>Loading…</div>}>
+              {children}
+            </React.Suspense>
+          </main>
+        </div>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
