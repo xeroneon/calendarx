@@ -9,16 +9,9 @@
  * This gives the calendar service correct, real IANA wall-clock↔UTC math with
  * zero runtime dependencies (Node's native Temporal is still a stub here).
  */
-import { readFileSync } from 'node:fs'
 import type { HMS, Tzid, YMD } from '../types.js'
 import { epochToUtcYmd, utcYmdToEpoch } from '../datetime.js'
-
-/** Load the committed IANA table (src for dev, copied into dist for prod). */
-function loadTzdb(): TZDB {
-  const url = new URL('../tz/tzdb.json', import.meta.url)
-  const raw = readFileSync(url, 'utf8')
-  return JSON.parse(raw) as TZDB
-}
+import tzdbData from '../tz/tzdb.json' with { type: 'json' }
 
 export type ZoneSegments = [epoch: number, offsetSec: number, isDst: 0 | 1][]
 
@@ -26,7 +19,15 @@ interface TZDB {
   [zone: string]: ZoneSegments
 }
 
-const DB: TZDB = loadTzdb()
+/**
+ * The committed IANA transition table. Imported as a JSON module so it is
+ * bundled inline by Vite into BOTH the browser client and the SSR server
+ * bundle (a `readFileSync` here crashed the browser with "readFileSync is not
+ * a function"). `resolveJsonModule` is on in tsconfig; the build copies
+ * `src/tz/tzdb.json` → `dist/tz/tzdb.json` so the relative import also works
+ * for the standalone Node server.
+ */
+const DB: TZDB = tzdbData as unknown as TZDB
 
 /** Whether a TZID resolves to a known IANA zone in our registry. */
 export function zoneKnown(tzid: string): boolean {
