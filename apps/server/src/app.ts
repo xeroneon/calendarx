@@ -5,7 +5,9 @@ import express, { type Express, type Request, type Response } from 'express'
 import cors from 'cors'
 import { pino } from 'pino'
 import { pinoHttp } from 'pino-http'
-import { connectionRouter, calendarRouter, defaultConnection } from './routes/calendar-and-connections.js'
+import { authRouter } from './routes/auth.js'
+import { authMiddleware, requireAuth } from './auth.js'
+import { connectionRouter, calendarRouter } from './routes/calendar-and-connections.js'
 
 const VERSION = '0.1.0'
 
@@ -25,8 +27,11 @@ function buildApp(silent = false): Express {
     })
   })
 
-  app.use('/api/connections', connectionRouter)
-  app.use('/api/calendar', calendarRouter)
+  // Account gate: /api/auth is public (signup/login), everything else gated.
+  app.use('/api', authMiddleware)
+  app.use('/api/auth', authRouter)
+  app.use('/api/connections', requireAuth, connectionRouter)
+  app.use('/api/calendar', requireAuth, calendarRouter)
 
   // Central error handler — respond 500 JSON, never leak a stack.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -40,8 +45,9 @@ function buildApp(silent = false): Express {
 export async function startServer(): Promise<void> {
   const port = Number(process.env.PORT ?? 3101)
   const app = buildApp()
-  // Surface whether the seed has a configured CalDAV backend at boot.
-  void defaultConnection()
+  // Load persisted accounts/sessions (survives restarts).
+  const { authStore } = await import('./auth.js')
+  await authStore.load()
   app.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(`calendarx server listening on :${port}`)

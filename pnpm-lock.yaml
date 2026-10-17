@@ -130,6 +130,9 @@ importers:
       '@tanstack/react-start':
         specifier: ^1.168.59
         version: 1.169.2(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.14)(rollup@4.64.6)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+      '@tanstack/start-server-core':
+        specifier: 1.169.43
+        version: 1.169.43
       react:
         specifier: ^19.0.0
         version: 19.3.1

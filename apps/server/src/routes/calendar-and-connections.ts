@@ -1,18 +1,14 @@
 /**
- * CalendarX server — thin CalDAV proxy + connection store.
+ * CalendarX server — thin CalDAV proxy + per-account connection store.
  *
  * CalendarX is a *CalDAV-generic client*: the browser/PWA must never hold the
- * upstream CalDAV password. This server stores the active CalDAV connection
- * (base URL, principal, auth mode) and proxies the CalDAV protocol through
- * `@calendarx/caldav`, translating upstream collections/items into the shared
- * domain model from `@calendarx/calendar`. Web hooks for the connection screen
- * live at `/api/connections`; the calendar surface at `/api/calendar`.
- *
- * SEED SCOPE: a single in-memory connection (Radicale is the seed/deploy default
- * backend; CalDAV-generic — works with Nextcloud/Radicale/Baikal/iCloud too).
- * Multi-connection + per-connection persistence is the settings follow-on card.
+ * upstream CalDAV password. This server stores each *account's* CalDAV
+ * connection (base URL, auth mode, credentials) keyed by userId and proxies the
+ * CalDAV protocol through `@calendarx/caldav`. Accounts are created via the
+ * account gate (`/api/auth`); every route here is behind `requireAuth`, so an
+ * unauthenticated visitor and every other account only ever see their own
+ * connection and calendar (XER-316).
  */
-
 import { Router, type Request, type Response } from 'express'
 import {
   CalDavClient,
@@ -20,8 +16,9 @@ import {
   type CalDavConnectionConfig,
 } from '@calendarx/caldav'
 import { newUid, type CalendarItem } from '@calendarx/calendar'
+import { currentAuthUser } from '../auth.js'
 
-/** In-memory active CalDAV connection (replaced by durable store in a later card). */
+/** One account's saved CalDAV connection (persisted per-user, never shared). */
 interface StoredConnection {
   id: string
   name: string
@@ -33,26 +30,17 @@ interface StoredConnection {
   createdAt: string
 }
 
-let connection: StoredConnection | null = null
+/** Per-account connection store: userId → that user's connection. */
+const connectionsByUser = new Map<string, StoredConnection>()
 
-/** Seed default: the app's own Radicale backend (env-configured). */
-export function defaultConnection(): StoredConnection | null {
-  const env = process.env.CALDAV_BASE_URL
-  if (!env) return null
-  return {
-    id: 'default',
-    name: process.env.CALDAV_NAME ?? 'Home Calendar',
-    principalUrl: env,
-    auth: (process.env.CALDAV_AUTH as CalDavAuth) ?? 'basic',
-    username: process.env.CALDAV_USERNAME,
-    password: process.env.CALDAV_PASSWORD,
-    verified: false,
-    createdAt: new Date().toISOString(),
-  }
-}
-
-function activeConnection(): StoredConnection | null {
-  return connection ?? defaultConnection()
+/**
+ * The active connection for the authenticated caller. With the account gate an
+ * account sees exactly its own saved connection (or none → the connect screen).
+ */
+function activeConnection(req: Request): StoredConnection | null {
+  const user = currentAuthUser(req)
+  if (!user) return null
+  return connectionsByUser.get(user.id) ?? null
 }
 
 /** Build a CalDavClient for the active connection (no password is exposed). */
@@ -71,9 +59,9 @@ export const calendarRouter = Router()
 
 /* ---------------- connections ---------------- */
 
-/** GET /api/connections — the saved connection (no secrets). */
+/** GET /api/connections — the signed-in account's connection (no secrets). */
 connectionRouter.get('/', (_req: Request, res: Response) => {
-  const c = activeConnection()
+  const c = activeConnection(res.req)
   if (!c) {
     res.json({ ok: true, data: { connections: [] } })
     return
@@ -108,14 +96,19 @@ connectionRouter.post('/test', async (req: Request, res: Response) => {
   res.json({ ok: true, data: result })
 })
 
-/** POST /api/connections — save the active CalDAV connection. */
+/** POST /api/connections — save the signed-in account's CalDAV connection. */
 connectionRouter.post('/', (req: Request, res: Response) => {
+  const user = currentAuthUser(req)
+  if (!user) {
+    res.status(401).json({ ok: false, error: { code: 'auth_required', message: 'authentication required' } })
+    return
+  }
   const body = req.body as { name?: string; principalUrl?: string; auth?: CalDavAuth; username?: string; password?: string }
   if (!body.principalUrl) {
     res.status(400).json({ ok: false, error: { code: 'missing_url', message: 'principalUrl is required' } })
     return
   }
-  connection = {
+  const conn: StoredConnection = {
     id: newUid('conn'),
     name: body.name ?? 'My Calendar',
     principalUrl: body.principalUrl,
@@ -125,21 +118,16 @@ connectionRouter.post('/', (req: Request, res: Response) => {
     verified: true,
     createdAt: new Date().toISOString(),
   }
+  connectionsByUser.set(user.id, conn)
   res.status(201).json({
     ok: true,
     data: {
-      connection: { id: connection.id, name: connection.name, principalUrl: connection.principalUrl, auth: connection.auth, verified: true, createdAt: connection.createdAt },
+      connection: { id: conn.id, name: conn.name, principalUrl: conn.principalUrl, auth: conn.auth, verified: true, createdAt: conn.createdAt },
     },
   })
 })
 
 /* ---------------- calendar ---------------- */
-
-function requireConnection(res: Response): StoredConnection | null {
-  const c = activeConnection()
-  if (!c) return null
-  return c
-}
 
 /** Map an upstream CalDavCalendar into the shared CalendarCollection shape. */
 function toCollection(href: string, displayName: string, color?: string) {
@@ -151,9 +139,9 @@ function toCollection(href: string, displayName: string, color?: string) {
   }
 }
 
-/** GET /api/calendar — list calendars from the upstream server. */
+/** GET /api/calendar — list calendars from the caller's upstream server. */
 calendarRouter.get('/', async (_req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(res.req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return
@@ -168,7 +156,7 @@ calendarRouter.get('/', async (_req: Request, res: Response) => {
 
 /** GET /api/calendar/:key — list items in a collection (optionally kind-filtered). */
 calendarRouter.get('/:key', async (req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return
@@ -186,7 +174,7 @@ calendarRouter.get('/:key', async (req: Request, res: Response) => {
 
 /** GET /api/calendar/:key/occurrences — expanded recurrence window. */
 calendarRouter.get('/:key/occurrences', async (req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return
@@ -209,7 +197,7 @@ calendarRouter.get('/:key/occurrences', async (req: Request, res: Response) => {
 
 /** POST /api/calendar/:key/items — create an item in a collection. */
 calendarRouter.post('/:key/items', async (req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return
@@ -229,7 +217,7 @@ calendarRouter.post('/:key/items', async (req: Request, res: Response) => {
 
 /** PATCH /api/calendar/:key/items/:uid — replace an item (PUT with etag). */
 calendarRouter.patch('/:key/items/:uid', async (req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return
@@ -254,7 +242,7 @@ calendarRouter.patch('/:key/items/:uid', async (req: Request, res: Response) => 
 
 /** DELETE /api/calendar/:key/items/:uid. */
 calendarRouter.delete('/:key/items/:uid', async (req: Request, res: Response) => {
-  const c = requireConnection(res)
+  const c = activeConnection(req)
   if (!c) {
     res.status(503).json({ ok: false, error: { code: 'no_connection', message: 'no CalDAV connection configured' } })
     return

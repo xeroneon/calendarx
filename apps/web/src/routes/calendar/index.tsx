@@ -4,6 +4,7 @@ import { CalendarBrowser, type CalendarView } from '~/components/calendar/Calend
 import { ConnectionScreen } from '~/components/connection/ConnectionScreen'
 import { parseYmdKey } from '~/lib/calendar'
 import { useConnectionStatus } from '~/hooks/useConnectionStatus'
+import { AuthGate } from '~/components/AuthGate'
 
 const VIEWS: CalendarView[] = ['month', 'week', 'day', 'tasks']
 
@@ -14,7 +15,11 @@ export const Route = createFileRoute('/calendar/')({
     const view = VIEWS.includes(rawView) ? rawView : 'month'
     const rawDate = typeof search.date === 'string' ? search.date : undefined
     const date = rawDate && parseYmdKey(rawDate) ? rawDate : undefined
-    return <CalendarRouteGate view={view} date={date} />
+    return (
+      <AuthGate>
+        <CalendarRouteGate view={view} date={date} />
+      </AuthGate>
+    )
   },
 })
 

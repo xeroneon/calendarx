@@ -23,6 +23,7 @@
     "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/react-router-ssr-query": "^1.167.3",
     "@tanstack/react-start": "^1.168.59",
+    "@tanstack/start-server-core": "1.169.43",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "srvx": "^1.0.5"
@@ -31,8 +32,8 @@
     "@types/node": "^22.5.4",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^6.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitejs/plugin-react": "^6.0.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.0.14",
     "vitest": "^5.0.2"
