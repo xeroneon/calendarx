@@ -5,11 +5,12 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
-  useNavigate,
+  useLocation,
 } from '@tanstack/react-router'
 import * as React from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
+import { Avatar, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Sidebar } from '@calendarx/ui'
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import { useAuth } from '~/hooks/useAuth'
@@ -18,7 +19,6 @@ import appCss from '~/styles/app.css?url'
 import calendarCss from '~/styles/calendar.css?url'
 import uiTokens from '@calendarx/ui/tokens.css?url'
 import { seo } from '~/utils/seo'
-import { Button } from '@calendarx/ui'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -43,73 +43,123 @@ export const Route = createRootRouteWithContext<{
   component: RootComponent,
 })
 
+/** The app destinations shared by the sidebar and (in future) a command palette. */
+const NAV = [
+  { to: '/', label: 'Home', exact: true },
+  { to: '/calendar', label: 'Calendar', exact: false },
+  { to: '/connect', label: 'Connection', exact: false },
+]
+
 function RootComponent() {
+  const location = useLocation()
+  const auth = useAuth()
+  const qc = useQueryClient()
+  const authed = auth.state === 'authed'
+
+  const signOut = useMutation({
+    mutationFn: () => logout({ data: {} }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['auth'] })
+      await qc.invalidateQueries({ queryKey: ['connections'] })
+    },
+  })
+
+  // Clean, chrome-free surface for the auth screen (login).
+  const authPage = location.pathname === '/login'
+
   return (
-    <RootDocument>
+    <RootDocument showNav={!authPage} onLogout={() => signOut.mutate()} authed={authed} user={auth.state === 'authed' ? auth.user : undefined} signOutPending={signOut.isPending}>
       <Outlet />
     </RootDocument>
   )
 }
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({
+  children,
+  showNav,
+  onLogout,
+  authed,
+  user,
+  signOutPending,
+}: {
+  children: React.ReactNode
+  showNav?: boolean
+  onLogout?: () => void
+  authed?: boolean
+  user?: { id: string; email: string }
+  signOutPending?: boolean
+}) {
+  const navLinks = NAV.map((n) => (
+    <Link
+      key={n.to}
+      to={n.to}
+      activeOptions={{ exact: n.exact }}
+      activeProps={{ className: 'sidebar-link active' }}
+      className="sidebar-link"
+    >
+      {n.label}
+    </Link>
+  ))
+
   return (
-    <html lang='en'>
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <div className='cl-app'>
-          <BrandBar />
-          <main className='cl-main'>
-            <React.Suspense fallback={<div className='cl-empty'>Loading…</div>}>
-              {children}
-            </React.Suspense>
-          </main>
-        </div>
+        {showNav && (
+          <Sidebar ariaLabel="Main navigation" asideId="app-sidebar" brand={<Link to="/" activeOptions={{ exact: true }}>CalendarX</Link>}>
+            <nav className="sidebar-nav" aria-label="Main navigation">
+              {navLinks}
+            </nav>
+            <div className="sidebar-footer">
+              {authed && user && onLogout && (
+                <ProfileMenu email={user.email} onLogout={onLogout} signOutPending={signOutPending} />
+              )}
+            </div>
+          </Sidebar>
+        )}
+        <main className={showNav ? 'cl-main' : 'cl-shell-auth'}>
+          <React.Suspense fallback={<div className="cl-empty">Loading…</div>}>
+            {children}
+          </React.Suspense>
+        </main>
         <Scripts />
       </body>
     </html>
   )
 }
 
-function BrandBar(): React.ReactElement {
-  const auth = useAuth()
-  const qc = useQueryClient()
-  const navigate = useNavigate()
-  const signOut = useMutation({
-    mutationFn: () => logout({ data: {} }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['auth'] })
-      await qc.invalidateQueries({ queryKey: ['connections'] })
-      await navigate({ to: '/login' })
-    },
-  })
-  const authed = auth.state === 'authed'
+/** Profile avatar + anchored account menu in the sidebar footer (mirrors cloud XER-218). */
+function ProfileMenu({
+  email,
+  onLogout,
+  signOutPending,
+}: {
+  email: string
+  onLogout: () => void
+  signOutPending?: boolean
+}) {
+  const name = email.split('@')[0] || email
   return (
-    <header className='cl-brandbar'>
-      <Link to={authed ? '/' : '/login'} className='cl-brand'>
-        CalendarX
-      </Link>
-      <nav className='cl-brandnav'>
-        {authed ? (
-          <>
-            <Link to='/calendar' className='cl-brandlink'>
-              Calendar
-            </Link>
-            <Link to='/connect' className='cl-brandlink'>
-              Connection
-            </Link>
-            <span className='cl-auth-email'>{auth.user.email}</span>
-            <Button size='sm' variant='ghost' onClick={() => signOut.mutate()} disabled={signOut.isPending}>
-              {signOut.isPending ? '…' : 'Sign out'}
-            </Button>
-          </>
-        ) : (
-          <Link to='/login' className='cl-brandlink'>
-            Sign in
-          </Link>
-        )}
-      </nav>
-    </header>
+    <Menu align="end" side="top">
+      <MenuTrigger>
+        <button
+          type="button"
+          className="profile-trigger"
+          aria-label={`Account menu for ${name}`}
+          aria-haspopup="menu"
+        >
+          <Avatar label={name} size={22} seed={email} />
+        </button>
+      </MenuTrigger>
+      <MenuContent label={name}>
+        <div className="profile-menu__email">{email}</div>
+        <MenuSeparator />
+        <MenuItem label="Log out" destructive onSelect={onLogout}>
+          {signOutPending ? '…' : 'Log out'}
+        </MenuItem>
+      </MenuContent>
+    </Menu>
   )
 }
