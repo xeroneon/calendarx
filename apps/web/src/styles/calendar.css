@@ -64,6 +64,37 @@
 .cl-view-btn.active { color: var(--cx-text); font-weight: var(--cx-weight-medium); background: var(--cx-selection); }
 .cl-actions { display: flex; align-items: center; gap: var(--cx-sp-2); }
 
+/* ── Toolbar — mobile reflow (XER-319) ────────────────────────────────────
+   The toolbar is a single nowrap flex row; on small screens it overflows and
+   the Month/Week/Day/Tasks tabs get cut off. Below 768px, wrap the toolbar so
+   the nav + calendar-picker + actions stay on line 1 and .cl-views lands on
+   its own full-width, always-visible row under the nav row (line 2), where the
+   four tab buttons stretch evenly. Desktop layout unchanged. */
+@media (max-width: 767px) {
+  .cl-toolbar {
+    flex-wrap: wrap;
+    row-gap: var(--cx-sp-2);
+    padding: var(--cx-sp-2);
+  }
+  .cl-nav { flex: 1 1 auto; min-width: 0; order: 1; }
+  .cl-nav .cl-title { flex: 1 1 auto; min-width: 0; }
+  .cl-cal-picker { order: 2; margin-left: 0; min-width: 0; }
+  .cl-actions { order: 3; margin-left: auto; }
+  .cl-views {
+    order: 4;
+    flex: 1 1 100%;
+    justify-content: stretch;
+    border-top: 1px solid var(--cx-border);
+    padding-top: var(--cx-sp-2);
+  }
+  .cl-view-btn {
+    flex: 1 1 0;
+    text-align: center;
+    padding: 10px 4px;
+    border-radius: var(--cx-radius-md);
+  }
+}
+
 /* ── Month grid ──────────────────────────────────────────────────────────── */
 .cl-month {
   display: grid;
