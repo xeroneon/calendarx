@@ -3,7 +3,6 @@ import * as React from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Card, CardBody, CardFooter, CardHeader, Field, TextField } from '@calendarx/ui'
 import { useAuth } from '~/hooks/useAuth'
-import { isNativeApp } from '~/lib/native'
 import { login, signup } from '~/server/auth'
 
 export const Route = createFileRoute('/login')({
@@ -29,8 +28,7 @@ function LoginScreen(): React.ReactElement {
       }
       void qc.invalidateQueries({ queryKey: ['auth'] })
       void qc.invalidateQueries({ queryKey: ['connections'] })
-      // Native app: jump straight to the calendar (no setup surface, XER-320).
-      void navigate({ to: isNativeApp() ? '/calendar' : '/' })
+      void navigate({ to: '/' })
     },
     onError: () => setFormErr('Could not reach the server.'),
   })

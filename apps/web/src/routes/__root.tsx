@@ -14,7 +14,6 @@ import { Avatar, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Sideba
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import { useAuth } from '~/hooks/useAuth'
-import { useNativeApp } from '~/hooks/useNativeApp'
 import { logout } from '~/server/auth'
 import appCss from '~/styles/app.css?url'
 import calendarCss from '~/styles/calendar.css?url'
@@ -56,9 +55,6 @@ function RootComponent() {
   const auth = useAuth()
   const qc = useQueryClient()
   const authed = auth.state === 'authed'
-  // In the Capacitor/Android app the server-side connection is invisible, so
-  // the Connection nav entry is omitted (XER-320).
-  const nativeApp = useNativeApp()
 
   const signOut = useMutation({
     mutationFn: () => logout({ data: {} }),
@@ -72,7 +68,7 @@ function RootComponent() {
   const authPage = location.pathname === '/login'
 
   return (
-    <RootDocument showNav={!authPage} nativeApp={nativeApp} onLogout={() => signOut.mutate()} authed={authed} user={auth.state === 'authed' ? auth.user : undefined} signOutPending={signOut.isPending}>
+    <RootDocument showNav={!authPage} onLogout={() => signOut.mutate()} authed={authed} user={auth.state === 'authed' ? auth.user : undefined} signOutPending={signOut.isPending}>
       <Outlet />
     </RootDocument>
   )
@@ -81,7 +77,6 @@ function RootComponent() {
 function RootDocument({
   children,
   showNav,
-  nativeApp,
   onLogout,
   authed,
   user,
@@ -89,15 +84,12 @@ function RootDocument({
 }: {
   children: React.ReactNode
   showNav?: boolean
-  nativeApp?: boolean
   onLogout?: () => void
   authed?: boolean
   user?: { id: string; email: string }
   signOutPending?: boolean
 }) {
-  // Native (Capacitor) users don't manage the CalDAV connection on-device —
-  // it lives on their account server-side — so the Connection entry is hidden.
-  const navLinks = NAV.filter((n) => !(nativeApp && n.to === '/connect')).map((n) => (
+  const navLinks = NAV.map((n) => (
     <Link
       key={n.to}
       to={n.to}
