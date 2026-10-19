@@ -30,10 +30,10 @@ because every distributed user self-hosts their own CalendarX server. Flow:
 Once an instance is saved, the launcher goes **straight into the calendar**:
 `ConnectActivity.onCreate()` finishes into `MainActivity` before drawing if
 `InstanceStore.hasInstance()` is true, so the setup screen never flashes again.
-Re-configuring another instance stays reachable via a floating **"Change server"**
-gear button that `MainActivity` overlays on the webview — it re-launches
-`ConnectActivity` with `EXTRA_RECONFIGURE`, which forces the setup UI to show even
-though an instance exists (see `MainActivity.onNewIntent` for the singleTask reload).
+There is **no in-app affordance back** to the native setup screen — re-configuring
+an instance means clearing the app's data (Settings → Apps → CalendarX → Clear
+storage), which wipes InstanceStore's EncryptedSharedPreferences and returns the
+next launch to setup.
 
 Kotlin sources live under `android/app/src/main/java/dev/calendarx/app/`
 (`ConnectActivity.kt`, `InstanceStore.kt`, `ServerProbe.kt`). Build deps:

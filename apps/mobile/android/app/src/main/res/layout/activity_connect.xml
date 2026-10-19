@@ -61,14 +61,5 @@
             android:enabled="false"
             android:text="@string/connect_connect" />
 
-        <Button
-            android:id="@+id/open_button"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/connect_open"
-            android:visibility="gone" />
-
     </LinearLayout>
 </ScrollView>

@@ -13,10 +13,6 @@
     <string name="connect_testing">Testing connection…</string>
     <string name="connect_test">Test connection</string>
     <string name="connect_connect">Connect &amp; open</string>
-    <string name="connect_open">Open CalendarX</string>
     <string name="connect_enter_url">Enter a server URL first.</string>
     <string name="connect_test_first">Run “Test connection” successfully before connecting.</string>
-    <string name="connect_already_configured">Connected to %s. Test again to change, or open to continue.</string>
-    <!-- Floating "Change server" affordance on the calendar screen (XER-322). -->
-    <string name="connect_change_server">Change server</string>
 </resources>

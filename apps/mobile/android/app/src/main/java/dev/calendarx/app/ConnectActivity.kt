@@ -28,41 +28,28 @@ import androidx.appcompat.app.AppCompatActivity
  *    and verifies their instance origin.
  *  - Once an instance is saved ([InstanceStore.hasInstance]), every subsequent launch
  *    goes STRAIGHT into [MainActivity] (the calendar webview) — this screen is
- *    finished before it draws, so it never flashes. Re-configuring is still possible:
- *    [MainActivity] re-launches this activity with [EXTRA_RECONFIGURE] set, which
- *    forces the setup UI to show despite an existing instance.
+ *    finished before it draws, so it never flashes again. There is no in-app path
+ *    back here; re-configuring an instance means clearing the app's data (which
+ *    wipes the saved instance) so the next launch returns to setup.
  */
 class ConnectActivity : AppCompatActivity() {
-
-    /**
-     * When true (set by [MainActivity]'s "Change server" affordance), show the setup
-     * UI even though an instance is already saved. Omitted on a normal launch.
-     */
-    companion object {
-        const val EXTRA_RECONFIGURE = "dev.calendarx.app.reconfigure"
-    }
 
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
     private lateinit var testButton: Button
     private lateinit var connectButton: Button
-    private lateinit var openButton: Button
 
     /** Last successfully verified probe result (used to persist on Connect). */
     private var lastResult: ServerProbe.Result? = null
-
-    /** True when launched from [MainActivity] to change the saved instance (XER-322). */
-    private var reconfigure = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // XER-322: once an instance is configured, a normal launch goes STRAIGHT into
         // the calendar webview — finish before drawing so the setup screen never
-        // flashes. Only a reconfigure launch (from MainActivity's "Change server")
-        // shows this screen again.
-        reconfigure = intent?.getBooleanExtra(EXTRA_RECONFIGURE, false) ?: false
-        if (InstanceStore.hasInstance(this) && !reconfigure) {
+        // flashes. Clearing the app's data wipes the saved instance, which is how a
+        // user intentionally returns here.
+        if (InstanceStore.hasInstance(this)) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
@@ -74,25 +61,12 @@ class ConnectActivity : AppCompatActivity() {
         statusText = findViewById(R.id.connect_status)
         testButton = findViewById(R.id.test_button)
         connectButton = findViewById(R.id.connect_button)
-        openButton = findViewById(R.id.open_button)
 
-        // Prefill: a previously saved instance, else the demo default.
-        val savedUrl = InstanceStore.getServerUrl(this)
-        if (!savedUrl.isNullOrEmpty()) {
-            urlInput.setText(savedUrl)
-            val name = InstanceStore.getServerName(this)
-            statusText.text =
-                getString(R.string.connect_already_configured, name ?: savedUrl)
-            openButton.visibility = View.VISIBLE
-        } else {
-            urlInput.setText(InstanceStore.DEFAULT_DEMO_URL)
-        }
+        // First launch — prefill the demo default origin as a starting point.
+        urlInput.setText(InstanceStore.DEFAULT_DEMO_URL)
 
         testButton.setOnClickListener { runTest() }
         connectButton.setOnClickListener { onConnect() }
-        openButton.setOnClickListener {
-            InstanceStore.getServerUrl(this)?.let { launchWebview() }
-        }
     }
 
     private fun runTest() {
@@ -130,13 +104,7 @@ class ConnectActivity : AppCompatActivity() {
     }
 
     private fun launchWebview() {
-        val intent = Intent(this, MainActivity::class.java)
-        // Forward the reconfigure flag so an already-running (singleTask) MainActivity
-        // re-reads the new instance origin instead of keeping the old one (XER-322).
-        if (reconfigure) {
-            intent.putExtra(EXTRA_RECONFIGURE, true)
-        }
-        startActivity(intent)
+        startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
 
