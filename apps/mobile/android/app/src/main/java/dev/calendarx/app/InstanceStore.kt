@@ -30,7 +30,7 @@ object InstanceStore {
      * self-hosted CalendarX server URL. The backend default is a Radicale CalDAV
      * server, but the connect screen is CalDAV-generic.
      */
-    const val DEFAULT_DEMO_URL = "https://calendarx.xeroneon.dev"
+    const val DEFAULT_DEMO_URL = "https://calendar.xeroneon.dev"
 
     @JvmStatic
     fun getServerUrl(context: Context): String? = prefs(context).getString(KEY_SERVER_URL, null)

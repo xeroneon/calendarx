@@ -98,7 +98,7 @@ export const MTG_FREE_EXAMPLE: MobileWrapperConfig = {
  * Pre-baked CalendarX config (XER-303): the CalendarX web app wrapped for
  * Android. `apps/web` builds its client to `dist/client` (Capacitor webDir);
  * the origin env is baked at `cap sync` from `CALENDARX_ANDROID_ORIGIN`
- * (default `https://calendarx.xeroneon.dev`).
+ * (default `https://calendar.xeroneon.dev`).
  */
 export const CALENDARX_EXAMPLE: MobileWrapperConfig = {
   appId: 'dev.calendarx.app',
@@ -106,7 +106,7 @@ export const CALENDARX_EXAMPLE: MobileWrapperConfig = {
   shape: 'monorepo',
   webDir: '../../apps/web/dist/client',
   originEnv: 'CALENDARX_ANDROID_ORIGIN',
-  defaultOrigin: 'https://calendarx.xeroneon.dev',
+  defaultOrigin: 'https://calendar.xeroneon.dev',
   buildWebCommand: 'pnpm --filter "@calendarx/web..." build',
   installCommand: 'pnpm install --frozen-lockfile',
   apkPrefix: 'calendarx',

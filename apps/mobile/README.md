@@ -9,7 +9,7 @@ through Obtainium without redoing the setup.
 - Wrapper package: apps/mobile (capacitor.config.ts + committed android/)
 - webDir: ../../apps/web/dist/client
 - appId: dev.calendarx.app  appName: CalendarX
-- Baked live origin: `CALENDARX_ANDROID_ORIGIN` (fallback https://calendarx.xeroneon.dev)
+- Baked live origin: `CALENDARX_ANDROID_ORIGIN` (fallback https://calendar.xeroneon.dev)
 
 ## Native connect shell (self-hosted onboarding, XER-312)
 
@@ -51,7 +51,7 @@ keytool -genkeypair -v -keystore ~/calendarx.keystore -alias calendarx \
 ### 2. GitHub Actions secrets on xeroneon/calendarx
 - `ANDROID_SIGNING_KEYSTORE_BASE64` — base64 of the keystore
 - `ANDROID_SIGNING_KEYSTORE_PASSWORD` / `ANDROID_SIGNING_KEY_ALIAS` / `ANDROID_SIGNING_KEY_PASSWORD`
-- `CALENDARX_ANDROID_ORIGIN` — the LIVE origin (e.g. `https://calendarx.xeroneon.dev`), NOT a dead
+- `CALENDARX_ANDROID_ORIGIN` — the LIVE origin (e.g. `https://calendar.xeroneon.dev`), NOT a dead
   placeholder. Baked at `cap sync`; wrong origin = app installs but renders nothing.
 - `RELEASE_REPO_PAT` — classic PAT with `repo` scope to publish to the PUBLIC
   xeroneon/calendarx-releases from this private source repo. (GITHUB_TOKEN is repo-scoped.)

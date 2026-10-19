@@ -1,6 +1,6 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-const origin = process.env.CALENDARX_ANDROID_ORIGIN || 'https://calendarx.xeroneon.dev'
+const origin = process.env.CALENDARX_ANDROID_ORIGIN || 'https://calendar.xeroneon.dev'
 
 const config: CapacitorConfig = {
   appId: 'dev.calendarx.app',

@@ -46,7 +46,7 @@ object ServerProbe {
 
     internal fun probe(rawUrl: String): Result {
         val normalized = normalize(rawUrl)
-            ?: return Result(ok = false, message = "Not a valid URL. Include https:// (e.g. https://calendarx.xeroneon.dev).")
+            ?: return Result(ok = false, message = "Not a valid URL. Include https:// (e.g. https://calendar.xeroneon.dev).")
         val healthUrl = "${trimSlash(normalized)}/api/health"
 
         // Network config default allows HTTPS + localhost; keep timeouts short.
