@@ -6,6 +6,7 @@ import request from 'supertest'
 import type { Express } from 'express'
 import { buildApp } from './app.js'
 import { authStore } from './auth.js'
+import { connectionStore } from './routes/calendar-and-connections.js'
 
 const DATA_DIR = mkdtempSync(path.join(os.tmpdir(), 'cx-auth-'))
 
@@ -116,5 +117,28 @@ describe('@calendarx/server — account gate (XER-316)', () => {
     const res = await agent.post('/api/connections/test').send({ auth: 'basic' })
     expect(res.status).toBe(400)
     expect(res.body.error.code).toBe('missing_url')
+  })
+
+  it('XER-321: a saved connection survives a server restart (persisted to disk)', async () => {
+    const alice = await signedIn('persist@example.com')
+    const save = await alice.post('/api/connections').send({
+      name: 'Persisted Home',
+      principalUrl: 'https://radicale.xeroneon.dev/',
+      auth: 'basic',
+      username: 'xeroneon',
+      password: 'topsecret',
+    })
+    expect(save.status).toBe(201)
+
+    // Simulate an app redeploy: drop all in-memory state and reload from disk,
+    // exactly what startServer() does on boot.
+    await connectionStore.resetAndLoad()
+
+    // The connection is still present for the account, with credentials intact
+    // server-side (never echoed back to the browser).
+    const list = (await alice.get('/api/connections')).body.data.connections
+    expect(list).toHaveLength(1)
+    expect(list[0].principalUrl).toBe('https://radicale.xeroneon.dev/')
+    expect(list[0].password).toBeUndefined()
   })
 })

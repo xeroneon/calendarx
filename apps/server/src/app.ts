@@ -45,9 +45,11 @@ function buildApp(silent = false): Express {
 export async function startServer(): Promise<void> {
   const port = Number(process.env.PORT ?? 3101)
   const app = buildApp()
-  // Load persisted accounts/sessions (survives restarts).
+  // Load persisted accounts/sessions + CalDAV connections (survives restarts).
   const { authStore } = await import('./auth.js')
   await authStore.load()
+  const { connectionStore } = await import('./routes/calendar-and-connections.js')
+  await connectionStore.load()
   app.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(`calendarx server listening on :${port}`)

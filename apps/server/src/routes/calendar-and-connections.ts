@@ -10,6 +10,8 @@
  * connection and calendar (XER-316).
  */
 import { Router, type Request, type Response } from 'express'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
 import {
   CalDavClient,
   type CalDavAuth,
@@ -30,8 +32,75 @@ interface StoredConnection {
   createdAt: string
 }
 
-/** Per-account connection store: userId → that user's connection. */
-const connectionsByUser = new Map<string, StoredConnection>()
+/**
+ * Per-account connection store: userId → that user's connection.
+ *
+ * XER-321: previously an in-memory `Map`, so EVERY server restart (app redeploy,
+ * reboot, `systemctl --user restart calendarx-prod-api`) wiped every saved
+ * CalDAV connection and the user had to re-enter all details. Persist to
+ * `connections.json` in the same `CALENDARX_DATA_DIR` that already survives
+ * restarts for accounts/sessions (auth.json), mode 0600 to match it. The raw
+ * upstream password IS stored (the server needs it to proxy CalDAV) but never
+ * returned to the browser (the GET route strips it).
+ */
+function dataDir(): string {
+  return process.env.CALENDARX_DATA_DIR ?? path.join(process.cwd(), '.data')
+}
+
+class ConnectionStore {
+  private byUser = new Map<string, StoredConnection>()
+  private get file(): string {
+    return path.join(dataDir(), 'connections.json')
+  }
+
+  async load(): Promise<void> {
+    try {
+      const raw = await fs.readFile(this.file, 'utf8')
+      const data = JSON.parse(raw) as { connections: Array<{ userId: string; connection: StoredConnection }> }
+      this.byUser.clear()
+      for (const entry of data.connections ?? []) {
+        if (entry?.userId && entry?.connection) this.byUser.set(entry.userId, entry.connection)
+      }
+    } catch (err) {
+      // Nonexistent or corrupt store → start empty (first run / migrate).
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return
+      console.warn(`[connections] could not load ${this.file}: ${(err as Error).message}`)
+    }
+  }
+
+  private async persist(): Promise<void> {
+    try {
+      await fs.mkdir(path.dirname(this.file), { recursive: true })
+      const out: { connections: Array<{ userId: string; connection: StoredConnection }> } = {
+        connections: [...this.byUser.entries()].map(([userId, connection]) => ({ userId, connection })),
+      }
+      // Atomic write: temp file + rename so a concurrent/restarting reader
+      // never sees a partially-written (torn) connections.json.
+      const tmp = `${this.file}.tmp`
+      await fs.writeFile(tmp, JSON.stringify(out, null, 2), { mode: 0o600 })
+      await fs.rename(tmp, this.file)
+    } catch (err) {
+      console.warn(`[connections] could not persist ${this.file}: ${(err as Error).message}`)
+    }
+  }
+
+  get(userId: string): StoredConnection | undefined {
+    return this.byUser.get(userId)
+  }
+
+  async set(userId: string, connection: StoredConnection): Promise<void> {
+    this.byUser.set(userId, connection)
+    await this.persist()
+  }
+
+  /** Test hook: clear in-memory connections and reload from the data dir. */
+  async resetAndLoad(): Promise<void> {
+    this.byUser.clear()
+    await this.load()
+  }
+}
+
+export const connectionStore = new ConnectionStore()
 
 /**
  * The active connection for the authenticated caller. With the account gate an
@@ -40,7 +109,7 @@ const connectionsByUser = new Map<string, StoredConnection>()
 function activeConnection(req: Request): StoredConnection | null {
   const user = currentAuthUser(req)
   if (!user) return null
-  return connectionsByUser.get(user.id) ?? null
+  return connectionStore.get(user.id) ?? null
 }
 
 /** Build a CalDavClient for the active connection (no password is exposed). */
@@ -97,7 +166,7 @@ connectionRouter.post('/test', async (req: Request, res: Response) => {
 })
 
 /** POST /api/connections — save the signed-in account's CalDAV connection. */
-connectionRouter.post('/', (req: Request, res: Response) => {
+connectionRouter.post('/', async (req: Request, res: Response) => {
   const user = currentAuthUser(req)
   if (!user) {
     res.status(401).json({ ok: false, error: { code: 'auth_required', message: 'authentication required' } })
@@ -118,7 +187,7 @@ connectionRouter.post('/', (req: Request, res: Response) => {
     verified: true,
     createdAt: new Date().toISOString(),
   }
-  connectionsByUser.set(user.id, conn)
+  await connectionStore.set(user.id, conn)
   res.status(201).json({
     ok: true,
     data: {
