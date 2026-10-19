@@ -26,6 +26,15 @@ because every distributed user self-hosts their own CalendarX server. Flow:
   WebView at the persisted origin, reusing the full web UI. The baked origin is
   only the fallback for a still-unconfigured install.
 
+### Connect screen is first-launch only (XER-322)
+Once an instance is saved, the launcher goes **straight into the calendar**:
+`ConnectActivity.onCreate()` finishes into `MainActivity` before drawing if
+`InstanceStore.hasInstance()` is true, so the setup screen never flashes again.
+Re-configuring another instance stays reachable via a floating **"Change server"**
+gear button that `MainActivity` overlays on the webview — it re-launches
+`ConnectActivity` with `EXTRA_RECONFIGURE`, which forces the setup UI to show even
+though an instance exists (see `MainActivity.onNewIntent` for the singleTask reload).
+
 Kotlin sources live under `android/app/src/main/java/dev/calendarx/app/`
 (`ConnectActivity.kt`, `InstanceStore.kt`, `ServerProbe.kt`). Build deps:
 `kotlin-gradle-plugin` (root build.gradle), `androidx.security:security-crypto`,
