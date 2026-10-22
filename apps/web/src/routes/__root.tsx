@@ -14,6 +14,7 @@ import { Avatar, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Sideba
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import { useAuth } from '~/hooks/useAuth'
+import { usePushSync } from '~/hooks/usePushSync'
 import { logout } from '~/server/auth'
 import appCss from '~/styles/app.css?url'
 import calendarCss from '~/styles/calendar.css?url'
@@ -63,6 +64,10 @@ function RootComponent() {
       await qc.invalidateQueries({ queryKey: ['connections'] })
     },
   })
+
+  // Native-only: keeps the device's UnifiedPush endpoint in sync with the server
+  // (XER-335 Card C). No-op on the web / SSR.
+  usePushSync()
 
   // Clean, chrome-free surface for the auth screen (login).
   const authPage = location.pathname === '/login'

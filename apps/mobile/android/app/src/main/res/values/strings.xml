@@ -19,4 +19,9 @@
     <!-- Notification channel (XER-333 Card A) -->
     <string name="notification_channel_event_reminders">Event reminders</string>
     <string name="notification_channel_event_reminders_desc">Alerts for upcoming events and reminders on your calendars.</string>
+
+    <!-- UnifiedPush fallbacks (XER-335 Card C): shown when a push payload has no
+         title/body (shouldn't happen; Card B always sends both, but be safe). -->
+    <string name="notification_default_title">CalendarX</string>
+    <string name="notification_default_body">Calendar reminder</string>
 </resources>

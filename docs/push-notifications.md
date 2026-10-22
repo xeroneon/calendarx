@@ -140,6 +140,55 @@ unregisters it and the server cancels its pending deliveries.
 
 ---
 
+## (e) The Android app — what actually happens on-device
+
+This is the client side (Card C, XER-335). On the phone:
+
+- **The app embeds the official UnifiedPush connector** (`org.unifiedpush.android:
+  connector`) as a runtime service. This is what lets CalendarX *receive* pushes
+  from any distributor — it never depends on Google/FCM.
+- **Choosing a distributor (the picker):** the connector implements the UP UX
+  spec's distributor picker. When you open the app and it registers for push, if
+  you have exactly one UnifiedPush distributor installed (e.g. the ntfy app) it
+  uses that one silently. If you have several, it shows the UP picker so you
+  choose which one delivers CalendarX's reminders. If you have none, the picker
+  points you at installing one.
+- **Endpoint → your server:** when the chosen distributor hands the app a
+  per-device endpoint, the app stores it and — because it is signed into your
+  account in-app — automatically calls `PUT /api/push/subscription` with it. The
+  server now holds your device's endpoint and can push to it.
+- **What you see, day to day:** the **Connection** (settings) screen shows a
+  native-only **"Push notifications"** status row: `Reminders on this device`,
+  `Registering…`, or `Reminders off`, plus a reminder to install a distributor.
+  Recalling a reminder is a normal Android notification titled with the event
+  summary, on the **"Event reminders"** channel — tapping it opens the calendar.
+  (Tap-to-open scrolls to the event only when the deep link is implemented;
+  today it opens the calendar surface.)
+- **Unregistering:** removing the device, clearing app data, or the user
+  unregistering in a placed notification stops it — the stored endpoint is cleared
+  and the server's copy is removed via `DELETE /api/push/subscription`.
+
+### Self-hoster checklist (first phone)
+
+1. **Stand up the gateway** (section (a)) and make sure your server `CALENDARX_
+   REMINDER_HORIZON_MS` (optional; default 7 days) covers how far ahead you want
+   reminders.
+2. **Install a UP distributor on the phone** — the ntfy app (F-Droid) is the
+   reference; enable its "UnifiedPush" option. Keep it running (don't force-stop).
+3. **Install CalendarX** (the Obtainium/APK build) and connect it to your server
+   + log in.
+4. The app registers with the distributor (silent if you have one, picker if
+   several / none) and the server starts receiving the endpoint. You're done —
+   reminders push to the phone on time.
+
+> **Gotcha:** on-device push delivery lives in the **Android** app (the native
+> shell + connector). The plain web app (a browser) does not connect to a
+> distributor, so those reminders only surface on the phone. On the web, the
+> same `event-reminders` design applies if you run it with its own push channel;
+> the common setup is Android-only (sections (b) + (d)).
+
+---
+
 ## Why no Google
 
 UnifiedPush keeps the whole chain on infrastructure **you control**: your

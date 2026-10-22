@@ -23,6 +23,7 @@ import {
 } from '~/lib/connections'
 import { saveConnection, testConnection } from '~/server/connections'
 import { useConnectionStatus } from '~/hooks/useConnectionStatus'
+import { PushStatusRow } from '~/components/connection/PushStatusRow'
 
 /**
  * First-run + settings "add your CalDAV server" surface (XER-310). Collects a
@@ -93,6 +94,7 @@ export function ConnectionScreen(): React.ReactElement {
       <CardBody>
         <SummaryRow label={conn.name || 'Home Calendar'} badge="Active" sub={conn.principalUrl} />
         <SummaryRow label={info.label} sub={info.hint} />
+        <PushStatusRow />
       </CardBody>
       <CardFooter align="right">
         <Button variant="primary" onClick={() => void navigate({ to: '/calendar' })}>

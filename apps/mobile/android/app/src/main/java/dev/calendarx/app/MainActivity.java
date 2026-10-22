@@ -27,6 +27,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(android.os.Bundle savedInstanceState) {
+        // Register our native-only UnifiedPush bridge (XER-335 Card C) so the
+        // web app (which holds the authenticated session) can register/read the
+        // device endpoint and push subscription state. Must happen before the
+        // bridge loads.
+        registerPlugin(CalendarXUnifiedPushPlugin.class);
         // Ensure the notification channel exists before any reminder/push can arrive,
         // and (Android 13+) request the runtime notification permission at the natural
         // "app is actually being used" moment — MainActivity is only reached after the

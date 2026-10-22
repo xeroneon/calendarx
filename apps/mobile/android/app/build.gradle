@@ -52,6 +52,21 @@ repositories {
     }
 }
 
+// The UP connector is built with a newer Kotlin than our 2.0.21 toolchain; pin the
+// stdlib it drags in to our project's version so the metadata stays readable by the
+// compiler we ship (XER-335 Card C). The connector's own binaries are ABI-compatible.
+// It also pulls the JVM `com.google.crypto.tink:tink`, which collides class-for-class
+// with the `tink-android` artifact that androidx.security:security-crypto already
+// needs (InstanceStore). Exclude the JVM one and force the single Android/variant
+// tink at the same version so both consumers share one copy of the crypto jar.
+configurations.all {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+        force "com.google.crypto.tink:tink-android:1.18.0"
+    }
+}
+
 // Match the Kotlin compile target to the Java 21 toolchain used by AGP 8.x.
 kotlin {
     compilerOptions {
@@ -71,6 +86,13 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    // UnifiedPush connector (XER-335 Card C): lets the app register with a UP
+    // distributor (ntfy etc.) and receive reminder pushes — no Google/FCM.
+    implementation("org.unifiedpush.android:connector:3.1.2") {
+        // The connector's JVM `tink` collides with `tink-android` (security-crypto).
+        // Keep the single Android tink forced above.
+        exclude group: 'com.google.crypto.tink', module: 'tink'
+    }
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

@@ -43,6 +43,18 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- UnifiedPush connector endpoint (XER-335 Card C): receives NEW_ENDPOINT /
+             REGISTRATION_FAILED / UNREGISTERED / MESSAGE intents from the distributor
+             and routes them to CalendarXPushService. Not exported — only the UP
+             connector's own (exported) MessagingReceiverImpl reaches it. -->
+        <service
+            android:name=".CalendarXPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 
     <!-- Permissions -->

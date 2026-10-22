@@ -1,0 +1,103 @@
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '~/hooks/useAuth'
+import { isNative, unifiedPushPlugin } from '~/lib/native'
+import { registerPushSubscription, removePushSubscription } from '~/server/push'
+
+/**
+ * Native-only UnifiedPush sync (XER-335 Card C).
+ *
+ * The Android shell owns the UP connector; the *web* app (running inside the
+ * Capacitor WebView) is the only thing that holds the authenticated session, so
+ * it is the piece that turns a native device endpoint into a server-side
+ * subscription (`PUT /api/push/subscription`, Card B).
+ *
+ * On mount (native + authed) this:
+ *  1. tells the connector to ensure a distributor registration (the connector
+ *     shows the per-UP-UX picker when more than one distributor is installed);
+ *  2. reads whatever endpoint the connector already holds and registers it;
+ *  3. subscribes to `endpointChanged` so NEW_ENDPOINT → register and
+ *     UNREGISTERED → remove, live.
+ *
+ * It is a no-op on the plain web (no Capacitor), so the website's render is
+ * untouched. Exposes `status` for a native-only status row: 'idle' | 'registering'
+ * | 'registered' | 'off'.
+ */
+export function usePushSync(): {
+  status: 'idle' | 'registering' | 'registered' | 'off'
+} {
+  const qc = useQueryClient()
+  const auth = useAuth()
+  const [status, setStatus] = useState<'idle' | 'registering' | 'registered' | 'off'>('idle')
+  const inFlight = useRef<Promise<void> | null>(null)
+
+  useEffect(() => {
+    if (!isNative()) {
+      setStatus('idle')
+      return
+    }
+    if (auth.state !== 'authed') {
+      setStatus('idle')
+      return
+    }
+    const plugin = unifiedPushPlugin()
+    if (!plugin) {
+      setStatus('idle')
+      return
+    }
+
+    let disposed = false
+    let unsubscribeEvents: (() => void) | null = null
+
+    // Push the given native endpoint to the server (or drop it when null).
+    const sync = (endpoint: string | null | undefined) => {
+      if (disposed) return
+      if (!inFlight.current) {
+        inFlight.current = (async () => {
+          try {
+            if (endpoint) {
+              setStatus('registering')
+              await registerPushSubscription({ data: { transport: 'unifiedpush', endpoint } })
+              await qc.invalidateQueries({ queryKey: ['push'] })
+              if (!disposed) setStatus('registered')
+            } else {
+              await removePushSubscription({ data: {} })
+              if (!disposed) setStatus('off')
+            }
+          } catch {
+            // A transient server hiccup shouldn't kill the app; leave last state.
+          } finally {
+            inFlight.current = null
+          }
+        })()
+      }
+    }
+
+    // 1) ensure the connector is registered with a distributor (shows the picker
+    // if several; no-op if already registered). 2) read the current endpoint and
+    // register it. 3) watch for future changes.
+    plugin.register().catch(() => undefined)
+    plugin
+      .getEndpoint()
+      .then(({ endpoint }) => {
+        if (disposed) return
+        sync(endpoint)
+        // Even with no endpoint, the connector may still be mid-picker; the
+        // endpointChanged listener below picks up the eventual NEW_ENDPOINT.
+      })
+      .catch(() => undefined)
+    plugin
+      .addListener('endpointChanged', ({ endpoint }) => sync(endpoint))
+      .then((h) => {
+        unsubscribeEvents = h.remove
+      })
+      .catch(() => undefined)
+
+    return () => {
+      disposed = true
+      unsubscribeEvents?.()
+    }
+  }, [qc, auth.state])
+
+  return { status }
+}
