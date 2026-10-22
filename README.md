@@ -31,6 +31,13 @@ packages/      calendar (RFC5545 engine) · caldav (client) · ui · sdk · type
                mobile-wrapper (Capacitor generator)
 ```
 
+## Notifications
+
+CalendarX delivers reminders to your phone over **UnifiedPush** — your own
+gateway, no Google/FCM. Full self-hoster guide (stand up a UP gateway, install a
+distributor on the phone, point the server at it, the end-to-end flow, and the
+force-stop caveat): **[docs/push-notifications.md](docs/push-notifications.md)**.
+
 ## Develop
 
 ```bash

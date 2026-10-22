@@ -71,3 +71,28 @@ describe('@calendarx/sdk', () => {
     ).resolves.toEqual({ connection })
   })
 })
+describe('@calendarx/sdk — push (XER-334)', () => {
+  it('registers a UnifiedPush endpoint via push.register', async () => {
+    const endpoint = 'https://notify.local/alice'
+    const c = new CalendaxClient({
+      baseUrl: 'http://localhost:3000',
+      fetchImpl: fakeFetch(201, { ok: true, data: { subscription: { transport: 'unifiedpush', endpoint, updatedAt: '2026-10-22T00:00:00.000Z' } } }),
+    })
+    await expect(c.push.register('unifiedpush', endpoint)).resolves.toMatchObject({
+      subscription: { transport: 'unifiedpush', endpoint },
+    })
+  })
+
+  it('reads and removes a subscription via push.status / push.remove', async () => {
+    const c = new CalendaxClient({
+      baseUrl: 'http://localhost:3000',
+      fetchImpl: fakeFetch(200, { ok: true, data: { subscription: null } }),
+    })
+    await expect(c.push.status()).resolves.toEqual({ subscription: null })
+    const r = new CalendaxClient({
+      baseUrl: 'http://localhost:3000',
+      fetchImpl: fakeFetch(200, { ok: true, data: { removed: true } }),
+    })
+    await expect(r.push.remove()).resolves.toEqual({ removed: true })
+  })
+})

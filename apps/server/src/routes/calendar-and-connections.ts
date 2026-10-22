@@ -19,6 +19,8 @@ import {
 } from '@calendarx/caldav'
 import { newUid, type CalendarItem } from '@calendarx/calendar'
 import { currentAuthUser } from '../auth.js'
+import { reminderScheduler } from '../push/scheduler.js'
+import { pushSubscriptionStore } from '../push/registry.js'
 
 /** One account's saved CalDAV connection (persisted per-user, never shared). */
 interface StoredConnection {
@@ -121,6 +123,40 @@ function clientFor(c: StoredConnection): CalDavClient {
     password: c.password,
   }
   return new CalDavClient(cfg)
+}
+
+/* ---------------- reminder sweep (XER-334) ---------------- */
+
+/**
+ * Re-derive a user's pending reminders straight from their CalDAV server. Used
+ * on subscription (re)registration and at boot so a freshly-restarted server
+ * re-arms reminders without waiting for the UI to materialize a collection.
+ */
+export async function rescheduleUserFromCalDav(userId: string): Promise<void> {
+  const conn = connectionStore.get(userId)
+  if (!conn) return
+  const client = clientFor(conn)
+  let calendars: Awaited<ReturnType<CalDavClient['listCalendars']>>
+  try {
+    calendars = await client.listCalendars()
+  } catch (err) {
+    console.warn(`[push] sweep listCalendars failed for ${userId}: ${(err as Error).message}`)
+    return
+  }
+  for (const cal of calendars) {
+    try {
+      const items = await client.queryItems(cal.href)
+      reminderScheduler.rescheduleCollection(userId, encodeURIComponent(cal.href), items)
+    } catch (err) {
+      console.warn(`[push] sweep queryItems failed for ${userId}/${cal.href}: ${(err as Error).message}`)
+    }
+  }
+}
+
+/** Boot sweep: re-arm reminders for every registered device. Fire-and-forget. */
+export async function sweepAllSubscribedUsers(): Promise<void> {
+  const users = pushSubscriptionStore.subscribedUserIds()
+  await Promise.all(users.map((u) => rescheduleUserFromCalDav(u).catch(() => undefined)))
 }
 
 export const connectionRouter = Router()
@@ -235,6 +271,9 @@ calendarRouter.get('/:key', async (req: Request, res: Response) => {
   try {
     const items = await clientFor(c).queryItems(href)
     const filtered = kind === 'task' ? items.filter((i) => i.kind === 'task') : kind === 'event' ? items.filter((i) => i.kind === 'event') : items
+    // Materialization hook: reschedule this collection's reminders (alarms).
+    const user = currentAuthUser(req)
+    if (user) reminderScheduler.rescheduleCollection(user.id, String(req.params.key), items)
     res.json({ ok: true, data: { calendar: toCollection(href, href), items: filtered } })
   } catch (err) {
     res.status(502).json({ ok: false, error: { code: 'caldav_error', message: (err as Error).message } })
@@ -258,6 +297,9 @@ calendarRouter.get('/:key/occurrences', async (req: Request, res: Response) => {
     const store = new CalendarStore()
     for (const it of items) store.createItem(href, it)
     const occurrences = store.expand({ rangeStartUtc: start, rangeEndUtc: end, includeOverlapping: true })
+    // Materialization hook: schedule reminders from the pulled items.
+    const user = currentAuthUser(req)
+    if (user) reminderScheduler.rescheduleCollection(user.id, String(req.params.key), items)
     res.json({ ok: true, data: { calendar: href, occurrences } })
   } catch (err) {
     res.status(502).json({ ok: false, error: { code: 'caldav_error', message: (err as Error).message } })
@@ -278,6 +320,8 @@ calendarRouter.post('/:key/items', async (req: Request, res: Response) => {
   const objectHref = `${href.replace(/\/$/, '')}/${uid}.ics`
   try {
     const { etag } = await clientFor(c).putItem(objectHref, withUid)
+    const user = currentAuthUser(req)
+    if (user) reminderScheduler.scheduleItem(user.id, String(req.params.key), withUid)
     res.status(201).json({ ok: true, data: { item: withUid, etag } })
   } catch (err) {
     res.status(502).json({ ok: false, error: { code: 'caldav_error', message: (err as Error).message } })
@@ -303,6 +347,9 @@ calendarRouter.patch('/:key/items/:uid', async (req: Request, res: Response) => 
   const objectHref = `${href.replace(/\/$/, '')}/${uid}.ics`
   try {
     const { etag } = await clientFor(c).putItem(objectHref, merged)
+    const user = currentAuthUser(req)
+    // Cancels the pre-edit reminders (old trigger/start) and re-arms from the new item.
+    if (user) reminderScheduler.scheduleItem(user.id, String(req.params.key), merged)
     res.json({ ok: true, data: { item: merged, etag } })
   } catch (err) {
     res.status(502).json({ ok: false, error: { code: 'caldav_error', message: (err as Error).message } })
@@ -320,6 +367,8 @@ calendarRouter.delete('/:key/items/:uid', async (req: Request, res: Response) =>
   const uid = String(req.params.uid)
   try {
     await clientFor(c).deleteItem(`${href.replace(/\/$/, '')}/${uid}.ics`)
+    const user = currentAuthUser(req)
+    if (user) reminderScheduler.cancelItem(user.id, String(req.params.key), uid)
     res.json({ ok: true, data: { deleted: uid } })
   } catch (err) {
     res.status(502).json({ ok: false, error: { code: 'caldav_error', message: (err as Error).message } })

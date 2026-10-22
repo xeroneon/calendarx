@@ -135,6 +135,11 @@ export class CalendaxClient {
   get connections(): ConnectionClient {
     return new ConnectionClient(this)
   }
+
+  /** The UnifiedPush subscription client (device reminder delivery, XER-334). */
+  get push(): PushClient {
+    return new PushClient(this)
+  }
 }
 
 const jsonHeaders = (extra: Record<string, string> = {}) => ({ 'Content-Type': 'application/json', ...extra })
@@ -250,5 +255,43 @@ export class CalendarClient {
   /** Expand recurring items into concrete occurrences over a UTC window. */
   expand(key: string, start: string, end: string): Promise<{ calendar: string; occurrences: Occurrence[] }> {
     return this.client.call(`/api/calendar/${encodeURIComponent(key)}/occurrences?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+  }
+}
+/** The only transport the platform uses today — see docs/push-notifications.md. */
+export type PushTransportKind = 'unifiedpush'
+
+/** A device's registered UnifiedPush endpoint on the CalendarX server. */
+export interface PushSubscription {
+  transport: PushTransportKind
+  /** The UnifiedPush endpoint the server pushes reminder payloads to. */
+  endpoint: string
+  updatedAt: string
+}
+
+/**
+ * Typed surface for `/api/push` — the per-account UnifiedPush subscription the
+ * app registers (from a UP distributor on the phone) so the server can deliver
+ * reminders at fire time (XER-334). Behind the same auth as connections/calendar.
+ */
+export class PushClient {
+  constructor(private readonly client: CalendaxClient) {}
+
+  /** Read the caller's registered device subscription (or null). */
+  status(): Promise<{ subscription: PushSubscription | null }> {
+    return this.client.call('/api/push/subscription')
+  }
+
+  /** Register (or update) the caller's UnifiedPush device endpoint. */
+  register(transport: PushTransportKind, endpoint: string): Promise<{ subscription: PushSubscription }> {
+    return this.client.call('/api/push/subscription', {
+      method: 'PUT',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ transport, endpoint }),
+    })
+  }
+
+  /** Unregister the caller's device (stops server-side reminder delivery). */
+  remove(): Promise<{ removed: boolean }> {
+    return this.client.call('/api/push/subscription', { method: 'DELETE' })
   }
 }

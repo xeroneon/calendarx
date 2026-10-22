@@ -7,12 +7,17 @@ import type { Express } from 'express'
 import { buildApp } from './app.js'
 import { authStore } from './auth.js'
 import { connectionStore } from './routes/calendar-and-connections.js'
+import { pushSubscriptionStore } from './push/registry.js'
+import { reminderScheduler } from './push/scheduler.js'
 
 const DATA_DIR = mkdtempSync(path.join(os.tmpdir(), 'cx-auth-'))
 
 beforeAll(async () => {
   process.env.CALENDARX_DATA_DIR = DATA_DIR
   await authStore.resetAndLoad()
+  await connectionStore.resetAndLoad()
+  await pushSubscriptionStore.resetAndLoad()
+  reminderScheduler.dispose()
 })
 
 function app(): Express {
@@ -140,5 +145,51 @@ describe('@calendarx/server — account gate (XER-316)', () => {
     expect(list).toHaveLength(1)
     expect(list[0].principalUrl).toBe('https://radicale.xeroneon.dev/')
     expect(list[0].password).toBeUndefined()
+  })
+})
+
+describe('@calendarx/server — push subscription registry (XER-334)', () => {
+  it('gates /api/push behind auth (401 anonymous)', async () => {
+    const anon = request(app())
+    expect((await anon.get('/api/push/subscription')).status).toBe(401)
+    expect((await anon.put('/api/push/subscription').send({ transport: 'unifiedpush', endpoint: 'https://x.local/t' })).status).toBe(401)
+    expect((await anon.delete('/api/push/subscription')).status).toBe(401)
+  })
+
+  it('registers, reads and removes a UnifiedPush endpoint per account (isolated)', async () => {
+    const alice = await signedIn('push-alice@example.com')
+    const bob = await signedIn('push-bob@example.com')
+
+    expect((await alice.get('/api/push/subscription')).body.data.subscription).toBeNull()
+    expect((await alice.get('/api/push/subscription')).status).toBe(200)
+
+    const reg = await alice
+      .put('/api/push/subscription')
+      .send({ transport: 'unifiedpush', endpoint: 'https://notify.local/alice' })
+    expect(reg.status).toBe(201)
+    expect(reg.body.data.subscription.endpoint).toBe('https://notify.local/alice')
+    expect(reg.body.data.subscription.transport).toBe('unifiedpush')
+
+    // Bob (different account) never sees Alice's endpoint.
+    expect((await bob.get('/api/push/subscription')).body.data.subscription).toBeNull()
+
+    // Re-register updates (new endpoint replaces the old).
+    await alice.put('/api/push/subscription').send({ transport: 'unifiedpush', endpoint: 'https://notify.local/alice2' })
+    expect((await alice.get('/api/push/subscription')).body.data.subscription.endpoint).toBe('https://notify.local/alice2')
+
+    const del = await alice.delete('/api/push/subscription')
+    expect(del.status).toBe(200)
+    expect(del.body.data.removed).toBe(true)
+    expect((await alice.get('/api/push/subscription')).body.data.subscription).toBeNull()
+  })
+
+  it('rejects an unsupported transport and a non-URL endpoint', async () => {
+    const agent = await signedIn('push-validate@example.com')
+    const badTransport = await agent.put('/api/push/subscription').send({ transport: 'fcm', endpoint: 'https://x/t' })
+    expect(badTransport.status).toBe(400)
+    expect(badTransport.body.error.code).toBe('unsupported_transport')
+    const badUrl = await agent.put('/api/push/subscription').send({ transport: 'unifiedpush', endpoint: 'not-a-url' })
+    expect(badUrl.status).toBe(400)
+    expect(badUrl.body.error.code).toBe('invalid_endpoint')
   })
 })

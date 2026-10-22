@@ -63,6 +63,12 @@ calendarx/                      (pnpm + Turborepo, TS, AGPL-3.0)
 > **Status 2026-10-16→17:** user said go (XER-303 thread); XER-305..310 built + merged,
 > and **XER-312 (native connect shell) built on this card**. All follow-ons now done.
 
+**Push notifications (XER-332, 2026-10-22):** reminders are delivered server-side
+over **UnifiedPush** — the user's own gateway, no Google/FCM. See the self-hoster
+guide in [`docs/push-notifications.md`](docs/push-notifications.md) and the cards
+XER-333 (client foundation) / XER-334 (server registry + scheduler + sender) /
+XER-335 (app integration + tap-to-open).
+
 | Card | Scope | Dependency |
 |------|-------|-----------|
 | **XER-305 CalDAV client hardening** | multi-server coverage (Radicale primary/Nextcloud/Baikal/iCloud), auth (Basic/Digest/app-password + OAuth iCloud), timezone edges, pagination/etags | seed `packages/caldav` |
