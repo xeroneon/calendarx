@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -46,4 +47,13 @@
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ runtime notification permission (requested natively at first use,
+         see NotificationChannels). SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM intentionally NOT
+         added: reminders use the non-exact default so no exact-alarm system permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The @capacitor/local-notifications plugin declares SCHEDULE_EXACT_ALARM in its
+         own manifest; the issue mandates a non-exact default, so strip it from the merged
+         manifest (alarms use the plugin's non-exact `set`/`setAndAllowWhileIdle` path). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
 </manifest>

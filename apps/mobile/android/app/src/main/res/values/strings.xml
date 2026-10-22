@@ -15,4 +15,8 @@
     <string name="connect_connect">Connect &amp; open</string>
     <string name="connect_enter_url">Enter a server URL first.</string>
     <string name="connect_test_first">Run “Test connection” successfully before connecting.</string>
+
+    <!-- Notification channel (XER-333 Card A) -->
+    <string name="notification_channel_event_reminders">Event reminders</string>
+    <string name="notification_channel_event_reminders_desc">Alerts for upcoming events and reminders on your calendars.</string>
 </resources>

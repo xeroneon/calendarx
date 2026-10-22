@@ -7,6 +7,12 @@ const config: CapacitorConfig = {
   appName: 'CalendarX',
   webDir: '../../apps/web/dist/client',
   android: { allowMixedContent: false },
+  plugins: {
+    LocalNotifications: {
+      // Default status-bar icon for every reminder/push notification (XER-333 Card A).
+      smallIcon: 'ic_stat_calendar',
+    },
+  },
   server: {
     androidScheme: 'https',
     // Hybrid wrapper: the native shell loads the deployed web app over HTTPS.

@@ -1,6 +1,7 @@
 package dev.calendarx.app;
 
 import android.net.Uri;
+import android.os.Build;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.CapConfig;
@@ -23,6 +24,20 @@ import com.getcapacitor.CapConfig;
  * launch to {@link ConnectActivity}.
  */
 public class MainActivity extends BridgeActivity {
+
+    @Override
+    protected void onCreate(android.os.Bundle savedInstanceState) {
+        // Ensure the notification channel exists before any reminder/push can arrive,
+        // and (Android 13+) request the runtime notification permission at the natural
+        // "app is actually being used" moment — MainActivity is only reached after the
+        // user connects an instance, so this fires on first use, not at install.
+        NotificationChannels.ensureChannel(this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && !NotificationChannels.hasNotificationPermission(this)) {
+            NotificationChannels.requestNotificationPermission(this);
+        }
+        super.onCreate(savedInstanceState);
+    }
 
     @Override
     protected void load() {
