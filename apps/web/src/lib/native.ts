@@ -38,10 +38,17 @@ export function unifiedPushPlugin(): {
   unregister(): Promise<void>
   getEndpoint(): Promise<{ endpoint: string | null; registered: boolean; distributors: string[] }>
   hasEndpoint(): Promise<{ registered: boolean }>
+  /**
+   * NOTE: this web app reads the RAW native-injected plugin proxy directly (it
+   * does NOT bundle @capacitor/core, so `registerPlugin` is never called here).
+   * The native bridge's `addListener` returns a synchronous handle object
+   * `{ remove }` — NOT a Promise. (Only @capacitor/core's registerPlugin proxy
+   * wraps addListener into a Promise.) Callers must NOT `.then` the result.
+   */
   addListener(
     event: string,
     fn: (info: { endpoint?: string | null }) => void,
-  ): Promise<{ remove: () => void }>
+  ): { remove: () => void }
 } | undefined {
   if (typeof window === 'undefined') return undefined
   const cap = getCapacitor()

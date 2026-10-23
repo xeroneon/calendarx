@@ -86,12 +86,15 @@ export function usePushSync(): {
         // endpointChanged listener below picks up the eventual NEW_ENDPOINT.
       })
       .catch(() => undefined)
-    plugin
-      .addListener('endpointChanged', ({ endpoint }) => sync(endpoint))
-      .then((h) => {
-        unsubscribeEvents = h.remove
-      })
-      .catch(() => undefined)
+    // 3) subscribe to `endpointChanged` so NEW_ENDPOINT → register and
+    //    UNREGISTERED → remove, live.
+    // NOTE: the native bridge's addListener returns a synchronous `{ remove }`
+    // handle, NOT a Promise (this app reads the raw Capacitor.Plugins proxy —
+    // it never imports @capacitor/core, whose registerPlugin is what wraps
+    // addListener into a Promise). `.then` on it throws
+    // "addListener(...).then is not a function". Consume the handle directly.
+    const handle = plugin.addListener('endpointChanged', ({ endpoint }) => sync(endpoint))
+    unsubscribeEvents = handle?.remove ?? null
 
     return () => {
       disposed = true
