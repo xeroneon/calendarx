@@ -49,6 +49,36 @@ describe('@calendarx/web calendar helpers', () => {
     expect(t).toEqual({ kind: 'date', date: { year: 2026, month: 3, day: 2 } })
   })
 
+  it('converts a zoned wall clock to the correct absolute UTC instant (XER-332)', () => {
+    // A user in America/Los_Angeles (PDT in July, UTC-7) picks 06:40 local on
+    // 2026-07-23. That must be stored as 13:40Z, NOT the wall clock copied as UTC.
+    const t = calTimeFromInputs(
+      false,
+      { year: 2026, month: 7, day: 23 },
+      { hour: 6, minute: 40, second: 0 },
+      'America/Los_Angeles',
+    )
+    expect(t).toEqual({
+      kind: 'utc',
+      date: { year: 2026, month: 7, day: 23 },
+      time: { hour: 13, minute: 40, second: 0 },
+    })
+  })
+
+  it('leaves a wall clock in UTC zone unchanged', () => {
+    const t = calTimeFromInputs(
+      false,
+      { year: 2026, month: 7, day: 23 },
+      { hour: 6, minute: 40, second: 0 },
+      'UTC',
+    )
+    expect(t).toEqual({
+      kind: 'utc',
+      date: { year: 2026, month: 7, day: 23 },
+      time: { hour: 6, minute: 40, second: 0 },
+    })
+  })
+
   it('reports a parseable today', () => {
     const y = todayYmd()
     expect(y.year).toBeGreaterThan(2000)

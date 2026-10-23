@@ -6,7 +6,7 @@
  * the UI and the service stay in lock-step. All day-window math is Monday-first
  * (matches the recurrence engine's WKST=MO default).
  */
-import { attendee, isTaskComplete, uriEmail } from '@calendarx/calendar'
+import { attendee, isTaskComplete, resolveLocalToUtc, resolveUtcToLocal, uriEmail } from '@calendarx/calendar'
 import type { Alarm, Attendee, ByDayEntry, CalTime, HMS, RecurrenceRule, Weekday, YMD, Occurrence, CalendarTask } from '@calendarx/calendar'
 
 export type { HMS, YMD, Weekday } from '@calendarx/calendar'
@@ -144,12 +144,46 @@ export function formatHms(h: HMS): string {
 
 /**
  * Build a CalTime the server accepts from the create/edit form: all-day →
- * RFC DATE, otherwise a UTC DATE-TIME instant at the given wall clock.
+ * RFC DATE, otherwise a UTC DATE-TIME that is the ABSOLUTE instant the user
+ * picked (local wall clock in the browser's timezone, converted to UTC).
+ *
+ * XER-332 fix: previously we copied the local wall-clock straight into a
+ * `kind:'utc'` field, so an event set for "06:40 PDT" was stored as 06:40Z —
+ * seven hours earlier. The reminder scheduler reads `dtstart` as UTC, saw the
+ * event as already past, and dropped the reminder before it could ever fire
+ * ("I set a 5-minute reminder and got nothing"). Convert here so a zoned
+ * wall-clock yields the correct absolute UTC instant.
  */
-export function calTimeFromInputs(allDay: boolean, y: YMD, h: HMS | null): CalTime | undefined {
+export function calTimeFromInputs(
+  allDay: boolean,
+  y: YMD,
+  h: HMS | null,
+  timeZone: string = browserTimeZone(),
+): CalTime | undefined {
   if (allDay) return { kind: 'date', date: y }
   if (!h) return undefined
-  return { kind: 'utc', date: y, time: h }
+  if (timeZone === 'UTC' || timeZone === 'Etc/UTC' || timeZone === '') {
+    return { kind: 'utc', date: y, time: h }
+  }
+  // Convert the user's LOCAL wall clock (in the browser's IANA zone) to the
+  // correct absolute UTC instant. The engine's resolveLocalToUtc handles DST
+  // transitions; if the zone is unknown we fall back to treating the wall clock
+  // as UTC (the old, lossy behavior) rather than dropping the event.
+  const resolved = resolveLocalToUtc(timeZone, y, h)
+  if (!resolved) return { kind: 'utc', date: y, time: h }
+  const utcWall = resolveUtcToLocal('UTC', resolved.epochUtc)
+  if (!utcWall) return { kind: 'utc', date: y, time: h }
+  return { kind: 'utc', date: utcWall.ymd, time: utcWall.hms }
+}
+
+/** The browser's IANA timezone id (e.g. America/Los_Angeles), safe for SSR. */
+function browserTimeZone(): string {
+  if (typeof Intl === 'undefined' || typeof Intl.DateTimeFormat !== 'function') return 'UTC'
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
 }
 
 export type RecurFreq = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
