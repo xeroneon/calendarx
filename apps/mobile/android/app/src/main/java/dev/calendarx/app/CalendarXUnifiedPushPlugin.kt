@@ -14,14 +14,16 @@ import org.unifiedpush.android.connector.UnifiedPush
  *
  * The web app (which holds the authenticated session) uses this to:
  *  1. kick off registration with the user's UP distributor(s) — [register]
- *     calls the connector, which shows the per-UP-UX distributor picker when more
- *     than one is installed;
+ *     selects a distributor first (the connector's `UnifiedPush.register` ONLY
+ *     broadcasts REGISTER to the distributor that was ALREADY saved via
+ *     `saveDistributor`; without that step nothing is ever registered and the
+ *     device never gets an endpoint — the "Reminders off" state);
  *  2. read the current device endpoint and POST it to the server-fn
  *     (`PUT /api/push/subscription`, Card B) — [getEndpoint];
  *  3. observe NEW_ENDPOINT / UNREGISTERED changes via [UNIFIEDPUSH_ENDPOINT]
  *     events, then register or unregister on the server accordingly.
  *
- * It also [reRegister]s on web-app mount so an endpoint that survived a process
+ * It also [hasEndpoint]s on web-app mount so an endpoint that survived a process
  * restart is re-pushed to the server without re-picking a distributor.
  */
 @CapacitorPlugin(name = "CalendarXUnifiedPush")
@@ -29,13 +31,62 @@ class CalendarXUnifiedPushPlugin : Plugin() {
 
     private var unsubscribe: (() -> Unit)? = null
 
-    /** Kick off registration: the connector shows the distributor picker if several. */
+    /**
+     * Register the app with a UnifiedPush distributor. Selection first:
+     * - 0 distributors → resolve with `{ ok:false, reason:'no_distributor' }`
+     *   (the web layer shows "install a UnifiedPush distributor").
+     * - exactly 1 → save it as primary, then `UnifiedPush.register`.
+     * - several → use the connector's LinkActivity picker (falls back to the
+     *   current/default distributor when possible).
+     * Only after a distributor is saved does `UnifiedPush.register` actually
+     * broadcast REGISTER and eventually deliver a NEW_ENDPOINT.
+     */
     @PluginMethod
     fun register(call: PluginCall) {
         val context = context.applicationContext
+        val appName = context.getString(R.string.app_name)
         UnifiedPushState.load(context)
-        UnifiedPush.register(context, INSTANCE, context.getString(R.string.app_name), null)
-        call.resolve()
+
+        val distributors = UnifiedPush.getDistributors(context)
+        if (distributors.isEmpty()) {
+            call.resolve(
+                JSObject()
+                    .put("ok", false)
+                    .put("reason", "no_distributor")
+                    .put("distributors", distributors)
+            )
+            return
+        }
+
+        val saved = UnifiedPush.getSavedDistributor(context)
+        if (distributors.size == 1) {
+            // The single distributor is unambiguous — make it primary and register.
+            UnifiedPush.saveDistributor(context, distributors[0])
+            UnifiedPush.register(context, INSTANCE, appName, null)
+            call.resolve(JSObject().put("ok", true).put("distributor", distributors[0]))
+            return
+        }
+
+        // Multiple distributors: prefer the saved one; otherwise use the
+        // connector's default-resolution (tries the current/distributor picker).
+        if (saved != null && distributors.contains(saved)) {
+            UnifiedPush.saveDistributor(context, saved)
+            UnifiedPush.register(context, INSTANCE, appName, null)
+            call.resolve(JSObject().put("ok", true).put("distributor", saved))
+            return
+        }
+
+        UnifiedPush.tryUseDefaultDistributor(context) { success ->
+            if (success) {
+                UnifiedPush.register(context, INSTANCE, appName, null)
+            }
+            call.resolve(
+                JSObject()
+                    .put("ok", success)
+                    .put("reason", if (success) null else "pick_required")
+                    .put("distributors", distributors)
+            )
+        }
     }
 
     /** Unregister the device from its distributor and clear the stored endpoint. */

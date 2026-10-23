@@ -2,11 +2,15 @@ import * as React from 'react'
 import { usePushSync } from '~/hooks/usePushSync'
 import { isNative } from '~/lib/native'
 
-const LABEL: Record<'idle' | 'registering' | 'registered' | 'off', { text: string; tone: string }> = {
+const LABEL: Record<
+  'idle' | 'registering' | 'registered' | 'off' | 'no-distributor',
+  { text: string; tone: string }
+> = {
   idle: { text: '—', tone: 'muted' },
   registering: { text: 'Registering…', tone: 'muted' },
   registered: { text: 'Reminders on this device', tone: 'ok' },
   off: { text: 'Reminders off', tone: 'muted' },
+  'no-distributor': { text: 'No UnifiedPush distributor found', tone: 'muted' },
 }
 
 /**

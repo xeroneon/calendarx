@@ -34,7 +34,12 @@ export function isNative(): boolean {
  * every use with `isNative()`.
  */
 export function unifiedPushPlugin(): {
-  register(opts?: object): Promise<void>
+  register(opts?: object): Promise<{
+    ok: boolean
+    reason?: 'no_distributor' | 'pick_required' | null
+    distributor?: string | null
+    distributors?: string[]
+  }>
   unregister(): Promise<void>
   getEndpoint(): Promise<{ endpoint: string | null; registered: boolean; distributors: string[] }>
   hasEndpoint(): Promise<{ registered: boolean }>

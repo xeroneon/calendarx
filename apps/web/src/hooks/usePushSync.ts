@@ -24,11 +24,13 @@ import { registerPushSubscription, removePushSubscription } from '~/server/push'
  * | 'registered' | 'off'.
  */
 export function usePushSync(): {
-  status: 'idle' | 'registering' | 'registered' | 'off'
+  status: 'idle' | 'registering' | 'registered' | 'off' | 'no-distributor'
 } {
   const qc = useQueryClient()
   const auth = useAuth()
-  const [status, setStatus] = useState<'idle' | 'registering' | 'registered' | 'off'>('idle')
+  const [status, setStatus] = useState<
+    'idle' | 'registering' | 'registered' | 'off' | 'no-distributor'
+  >('idle')
   const inFlight = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
@@ -73,19 +75,30 @@ export function usePushSync(): {
       }
     }
 
-    // 1) ensure the connector is registered with a distributor (shows the picker
-    // if several; no-op if already registered). 2) read the current endpoint and
-    // register it. 3) watch for future changes.
-    plugin.register().catch(() => undefined)
+    // 1) ensure a distributor is selected and the connector registered (the
+    //    native register() now does getDistributors → saveDistributor → register;
+    //    it resolves {ok, reason, distributor}). 2) read the endpoint (existing
+    //    or freshly granted) and register it. 3) watch for future changes.
     plugin
-      .getEndpoint()
-      .then(({ endpoint }) => {
+      .register()
+      .then((res) => {
         if (disposed) return
-        sync(endpoint)
-        // Even with no endpoint, the connector may still be mid-picker; the
-        // endpointChanged listener below picks up the eventual NEW_ENDPOINT.
+        if (res && res.ok === false && res.reason === 'no_distributor') {
+          setStatus('no-distributor')
+          return
+        }
+        // Registration kicked off — read the (possibly just-granted) endpoint.
+        return plugin
+          .getEndpoint()
+          .then(({ endpoint }) => {
+            if (disposed) return
+            sync(endpoint)
+          })
+          .catch(() => undefined)
       })
       .catch(() => undefined)
+    // Even if the endpoint isn't ready yet, the endpointChanged listener below
+    // picks up the eventual NEW_ENDPOINT.
     // 3) subscribe to `endpointChanged` so NEW_ENDPOINT → register and
     //    UNREGISTERED → remove, live.
     // NOTE: the native bridge's addListener returns a synchronous `{ remove }`
