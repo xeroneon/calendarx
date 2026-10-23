@@ -229,15 +229,25 @@ export class ReminderScheduler {
     // Don't let a pending timer keep the process alive forever.
     if (typeof timer.unref === 'function') timer.unref()
     this.pending.set(rem.key, { ...rem, timer })
+    // eslint-disable-next-line no-console
+    console.log(
+      `[push] armed ${rem.eventKey ?? rem.key} at ${new Date(rem.at).toISOString()} (in ${delay}ms; pending=${this.pending.size})`,
+    )
   }
 
   /** At fire time: deliver to the user's current endpoint (if still registered). */
   private async fire(rem: PendingReminder): Promise<void> {
     try {
       const sub = this.registry.get(userIdOf(rem.key))
-      if (!sub) return // device unregistered → nothing to deliver
+      if (!sub) {
+        // eslint-disable-next-line no-console
+        console.log(`[push] fired ${rem.eventKey ?? rem.key}: no subscription, skipped`)
+        return // device unregistered → nothing to deliver
+      }
       const msg: PushMessage = { title: rem.title, body: rem.body, eventKey: rem.eventKey }
       await this.transport.deliver(sub.endpoint, msg)
+      // eslint-disable-next-line no-console
+      console.log(`[push] delivered ${rem.eventKey ?? rem.key} -> ${sub.endpoint}`)
     } catch (err) {
       console.warn(`[push] reminder delivery failed for ${rem.eventKey ?? rem.key}: ${(err as Error).message}`)
     }
