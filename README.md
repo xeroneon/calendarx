@@ -5,10 +5,9 @@ Android, distributed open-source.
 
 CalendarX does **not** re-host your data. It is a **CalDAV-generic client**: it
 connects to any standard CalDAV server — Nextcloud Calendar, Radicale, Baikal,
-iCloud — and puts that data behind a fast, opinionated, Linear-grade UI. Our
-deployment runs **Radicale** as the upstream backend (per user preference 2026-10-16);
-Radicale is the seed/demo backend but never the only one — CalDAV-generic stays
-the contract.
+iCloud — and puts that data behind a fast, opinionated, Linear-grade UI. The reference
+deployment runs **Radicale** as the upstream backend; Radicale is the seed/demo
+backend but never the only one — CalDAV-generic stays the contract.
 
 Seeded from the proven Xeroneon Cloud Phase 2 module (XER-78 RFC 5545 engine +
 XER-79 calendar/tasks UI), extracted and rebranded here rather than rebuilt from
@@ -65,4 +64,4 @@ pnpm --filter @calendarx/mobile-wrapper exec xeroneon-mobile-wrap --example cale
 
 ## License
 
-Pending decision (AGPL-3.0 recommended — see PLAN.md Q1).
+[GNU Affero General Public License v3.0](LICENSE) — distributed open source.

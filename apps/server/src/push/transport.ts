@@ -7,8 +7,8 @@
  * upstream may call ntfy/an endpoint directly — it must go through here.
  *
  * A CalendarX server never talks to Google/FCM. The self-hosted gateway is a
- * UnifiedPush server — by default the user's own ntfy instance (the CalendarX
- * reference is ntfy at http://192.168.1.100:2586). An app obtains a per-device
+ * UnifiedPush server — by default the user's own ntfy instance (a self-hosted
+ * ntfy gateway, e.g. http://ntfy.example.local:2586). An app obtains a per-device
  * push endpoint from a UnifiedPush *distributor* on the phone (the ntfy app
  * itself can be one) and POSTs it to `/api/push/subscription`; this transport
  * then delivers reminder payloads to that endpoint at fire time.

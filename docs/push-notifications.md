@@ -59,8 +59,8 @@ services:
 ```
 
 Start it, then confirm it answers on its base URL and that
-`NTFY_ENABLE_UNIFIEDPUSH=1` is set. The CalendarX dev install runs ntfy at
-`192.168.1.100:2586`.
+`NTFY_ENABLE_UNIFIEDPUSH=1` is set. The CalendarX dev install runs ntfy on the
+host's port 2586 (self-hoster picks their own host/URL).
 
 > The topic URL *is* a valid UnifiedPush endpoint: `https://your-host/<topic>`.
 > Only devices that know that topic receive its pushes, so use a random,
