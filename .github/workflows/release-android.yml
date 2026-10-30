@@ -136,18 +136,18 @@ jobs:
           fi
 
       - name: Mirror signed APK to public Obtainium channel (xeroneon/calendarx-releases)
-        # The source repo (xeroneon/calendarx) stays PRIVATE; GITHUB_TOKEN is scoped
-        # to THIS repo and cannot create releases elsewhere. A classic PAT with
-        # 'repo' scope (secret RELEASE_REPO_PAT) publishes the same signed APK to
-        # the public release-only channel xeroneon/calendarx-releases, which Obtainium
-        # pulls from anonymously.
+        # The source repo (xeroneon/calendarx) is PUBLIC open source; GITHUB_TOKEN
+        # is scoped to THIS repo and cannot create releases in another repo (even in
+        # the same org). A classic PAT with 'repo' scope (secret RELEASE_REPO_PAT)
+        # publishes the same signed APK to the stable public channel
+        # xeroneon/calendarx-releases, which Obtainium pulls from anonymously.
         env:
           GH_TOKEN: ${{ secrets.RELEASE_REPO_PAT }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.ver.outputs.version }}"
           TAG="v${VERSION}"
-          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Public obtainium channel; source stays private in xeroneon/calendarx."
+          NOTES="CalendarX v${VERSION} — signed Android APK wrapped via Capacitor (applicationId dev.calendarx.app). Stable public obtainium channel (source: xeroneon/calendarx)."
           APK="dist-apk/calendarx-v${VERSION}.apk"
           if gh release view "${TAG}" --repo xeroneon/calendarx-releases >/dev/null 2>&1; then
             gh release upload "${TAG}" "${APK}" --repo xeroneon/calendarx-releases --clobber

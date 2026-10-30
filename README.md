@@ -30,6 +30,22 @@ packages/      calendar (RFC5545 engine) · caldav (client) · ui · sdk · type
                mobile-wrapper (Capacitor generator)
 ```
 
+## Quick start — self-host with Docker
+
+One command brings up the web app + API:
+
+```bash
+docker compose up -d
+# → open http://<host>:3006
+```
+
+Then create your account and connect any CalDAV server (Radicale, Nextcloud,
+Baikal, iCloud) from the in-app **Connection** screen — accounts and
+connections persist in `./data`. Lock a single-user instance with
+`CALENDARX_ALLOW_SIGNUP=false` and add phone reminders with the optional
+UnifiedPush gateway (`docker compose --profile up up -d`). See
+[docker-compose.yml](docker-compose.yml).
+
 ## Notifications
 
 CalendarX delivers reminders to your phone over **UnifiedPush** — your own
@@ -45,13 +61,9 @@ pnpm dev                # web on :3102, server on :3101 (turbo)
 pnpm check              # lint + typecheck + test + build
 ```
 
-Point the server at an upstream CalDAV server (default: Radicale):
-
-```bash
-cd apps/server
-CALDAV_BASE_URL=http://localhost:5232/ \
-  CALDAV_USERNAME=... CALDAV_PASSWORD=... pnpm dev
-```
+Open http://localhost:3102, create an account, then connect your CalDAV server
+from the in-app **Connection** screen (per-account; the server stores the
+connection). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full dev workflow.
 
 ## Android
 
@@ -62,6 +74,12 @@ release CI. Pre-baked `calendarx` config:
 pnpm --filter @calendarx/mobile-wrapper exec xeroneon-mobile-wrap --example calendarx
 ```
 
+Build and sign the APK for your own server (keystore + `CALENDARX_ANDROID_ORIGIN`
+override, local or via GitHub Actions): **[docs/build-apk.md](docs/build-apk.md)**.
+
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE) — distributed open source.
+
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Security:
+[SECURITY.md](SECURITY.md) · Notifications: [docs/push-notifications.md](docs/push-notifications.md).

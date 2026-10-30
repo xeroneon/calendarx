@@ -5,11 +5,18 @@
  * HttpOnly `cx_session` cookie (relayed to the browser through the web server-fn
  * layer — it is never returned in a body a client can read). Every other API
  * segment is gated by `requireAuth` and scoped to the session's user.
+ *
+ * Public signup can be locked for a single-user / private self-host by setting
+ * `CALENDARX_ALLOW_SIGNUP=false` (bootstrap: start with it open, create your
+ * account, then restart with it closed). Existing accounts can still log in.
  */
 import { Router, type Request, type Response } from 'express'
 import { authStore, SESSION_COOKIE, sessionCookieOptions, isSecureRequest, currentAuthUser } from '../auth.js'
 
 export const authRouter = Router()
+
+/** Master switch for public registration. Lock it after bootstrapping your account. Read at request time so it is testable. */
+const signupEnabled = () => (process.env.CALENDARX_ALLOW_SIGNUP ?? 'true').toLowerCase() !== 'false'
 
 interface AuthBody {
   email?: string
@@ -43,6 +50,10 @@ authRouter.get('/me', (_req: Request, res: Response) => {
 
 /** POST /api/auth/signup — create an account and start a session. */
 authRouter.post('/signup', async (req: Request, res: Response) => {
+  if (!signupEnabled()) {
+    authError(res, 'signup_disabled', 'public signup is disabled on this server', 403)
+    return
+  }
   const { email, password } = (req.body ?? {}) as AuthBody
   if (!validEmail(email) || !validPassword(password)) {
     authError(res, 'invalid', 'a valid email and a password of 8+ characters are required')

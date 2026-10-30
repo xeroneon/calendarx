@@ -66,6 +66,20 @@ describe('@calendarx/server — account gate (XER-316)', () => {
     expect(short.status).toBe(400)
   })
 
+  it('rejects signup with 403 when public signup is disabled (CALENDARX_ALLOW_SIGNUP=false)', async () => {
+    process.env.CALENDARX_ALLOW_SIGNUP = 'false'
+    try {
+      const res = await request(app()).post('/api/auth/signup').send({ email: 'locked@example.com', password: 'hunter22!' })
+      expect(res.status).toBe(403)
+      expect(res.body.error.code).toBe('signup_disabled')
+      // login still works for an existing account when signup is closed
+      const login = await request(app()).post('/api/auth/login').send({ email: 'a@example.com', password: 'hunter22!' })
+      expect(login.status).toBe(200)
+    } finally {
+      delete process.env.CALENDARX_ALLOW_SIGNUP
+    }
+  })
+
   it('logs in with the right password and rejects a wrong one', async () => {
     const bad = await request(app()).post('/api/auth/login').send({ email: 'a@example.com', password: 'nope-nope' })
     expect(bad.status).toBe(401)

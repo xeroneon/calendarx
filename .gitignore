@@ -15,6 +15,9 @@ out/
 .env.*
 !.env.example
 
+# local runtime env (started by systemd/preview)
+.run*.env
+
 # editor / OS
 .idea/
 .vscode/

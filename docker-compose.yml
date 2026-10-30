@@ -1,0 +1,46 @@
+name: calendarx
+
+# One-command self-host:  docker compose up -d
+# Then open http://<host>:3006, create your account (bootstrap: keep
+# CALENDARX_ALLOW_SIGNUP=true), and connect your CalDAV server from the app's
+# **Connection** screen (Settings/connect — any Radicale / Nextcloud / Baikal /
+# iCloud endpoint). The app fetches your calendars over the API, so no extra
+# CalDAV config is needed here.
+#
+# Optional: start the UnifiedPush gateway for phone reminders too —
+#   docker compose --profile up up -d
+# then set the ntfy app's UnifiedPush base server to http://<host>:2586
+# (see docs/push-notifications.md).
+
+services:
+  calendarx:
+    build: .
+    image: calendarx:latest
+    restart: unless-stopped
+    ports:
+      - "3006:3006" # web app (SSR)
+      # Uncomment to expose the API directly (not required — the web reaches it internally):
+      # - "3101:3101"
+    volumes:
+      # Accounts, per-account CalDAV connections, and push subscriptions live here.
+      - ./data:/data
+    environment:
+      CALENDARX_DATA_DIR: /data
+      CALENDARX_API_URL: http://127.0.0.1:3101
+      API_PORT: "3101"
+      WEB_PORT: "3006"
+      # "false" locks registration after you bootstrap your account (single-user).
+      CALENDARX_ALLOW_SIGNUP: "true"
+
+  # Optional UnifiedPush gateway for reminder notifications (see docs/push-notifications.md).
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    profiles: ["up"]
+    restart: unless-stopped
+    command: serve
+    volumes:
+      - ./data/ntfy:/var/lib/ntfy
+    environment:
+      NTFY_ENABLE_UNIFIEDPUSH: "1" # make it a UnifiedPush distributor gateway
+    ports:
+      - "2586:80"

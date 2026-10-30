@@ -1,0 +1,19 @@
+# Build context hygiene — keep local secrets and vendored deps out of the image
+node_modules
+**/node_modules
+.git
+.gitignore
+.turbo
+dist
+**/dist
+build
+.data
+.keystore
+.run
+.run-*
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.pnpm-store
