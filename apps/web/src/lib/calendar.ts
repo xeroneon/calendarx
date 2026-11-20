@@ -8,6 +8,22 @@
  */
 import { attendee, isTaskComplete, resolveLocalToUtc, resolveUtcToLocal, uriEmail } from '@calendarx/calendar'
 import type { Alarm, Attendee, ByDayEntry, CalTime, HMS, RecurrenceRule, Weekday, YMD, Occurrence, CalendarTask } from '@calendarx/calendar'
+import {
+  addDays as addDaysIso,
+  addMonths as addMonthsIso,
+  addYears as addYearsIso,
+  daysBetween,
+  endOfMonth,
+  endOfWeek,
+  firstDayOfWeek,
+  formatDate,
+  formatDateRange,
+  monthGrid as sdkMonthGrid,
+  monthNames,
+  startOfMonth,
+  startOfWeek,
+  weekdayNames,
+} from '@ui-sdk/core/date'
 
 export type { HMS, YMD, Weekday } from '@calendarx/calendar'
 export type { ByDayEntry } from '@calendarx/calendar'
@@ -120,6 +136,129 @@ export function monthLabel(y: YMD): string {
 
 export function weekdayShort(i: number): string {
   return WEEKDAY_SHORT[((i % 7) + 7) % 7]!
+}
+
+/* ── Locale + grid via @ui-sdk/core/date (XER-549) ────────────────────────
+ * The UI SDK owns the date math now (month grids, week starts, range labels,
+ * typed-date parsing). These thin wrappers keep the old `YMD` domain type and
+ * the Monday-first default the recurrence engine (WKST=MO) expects, so the
+ * CalDAV expansion window and the rendered grid never disagree.
+ */
+
+/** The page's language, deterministic on server and client (SSR-safe). */
+export function uiLocale(): string {
+  if (typeof document !== 'undefined') {
+    const lang = document.documentElement.lang
+    if (lang) return lang
+  }
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language
+  return 'en-US'
+}
+
+/**
+ * First weekday of the grid for a locale, 0 = Sunday.
+ * English locales keep Monday: the app has always been Monday-first and the
+ * recurrence engine writes WKST=MO, so a Sunday flip would silently misplace
+ * every weekly rule's column. Other locales follow their own first day.
+ */
+export function appWeekStartsOn(locale: string = uiLocale()): number {
+  const first = firstDayOfWeek(locale)
+  return first === 0 && /^en\b/i.test(locale) ? 1 : first
+}
+
+/** Locale-aware month grid as weeks of YMDs (Monday-first for `en`). */
+export function monthGridLocale(anchor: YMD, weekStartsOn: number = appWeekStartsOn()): YMD[][] {
+  const iso = ymdKey({ year: anchor.year, month: anchor.month, day: 1 })
+  return sdkMonthGrid(iso, { weekStartsOn, fixedWeeks: false }).map((week) =>
+    week.map((d) => parseYmdKey(d) ?? { year: anchor.year, month: anchor.month, day: 1 }),
+  )
+}
+
+/** Locale-aware week window (7 YMDs) around `anchor`. */
+export function weekWindowLocale(anchor: YMD, weekStartsOn: number = appWeekStartsOn()): YMD[] {
+  const startIso = startOfWeek(ymdKey(anchor), weekStartsOn)
+  const start = parseYmdKey(startIso) ?? anchor
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+}
+
+/** "November 2026" in the page's language. */
+export function monthLabelLocale(anchor: YMD, locale: string = uiLocale()): string {
+  return timeZoneFreeFormat(ymdKey({ year: anchor.year, month: anchor.month, day: 1 }), locale, {
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+/** Localized short weekday names in grid order (7 entries). */
+export function weekdayNamesLocale(locale: string = uiLocale(), weekStartsOn: number = appWeekStartsOn()): string[] {
+  return weekdayNames(locale, 'short', weekStartsOn)
+}
+
+/** Format an ISO date for display; `options` are Intl.DateTimeFormat options. */
+export function formatIsoDate(iso: string, locale: string = uiLocale(), options?: Intl.DateTimeFormatOptions): string {
+  return formatDate(iso, locale, options)
+}
+
+/** `formatDate` wrapper that keeps UTC-safe rendering for bare ISO dates. */
+function timeZoneFreeFormat(iso: string, locale: string, options: Intl.DateTimeFormatOptions): string {
+  return formatDate(iso, locale, { ...options, timeZone: 'UTC' })
+}
+
+/* ── Quick ranges (XER-549, sink "This week / next week / …") ───────────── */
+
+export type QuickRangeKind = 'this-week' | 'next-week' | 'this-month' | 'next-month' | 'next-year'
+
+export const QUICK_RANGES: readonly { kind: QuickRangeKind; label: string }[] = [
+  { kind: 'this-week', label: 'This week' },
+  { kind: 'next-week', label: 'Next week' },
+  { kind: 'this-month', label: 'This month' },
+  { kind: 'next-month', label: 'Next month' },
+  { kind: 'next-year', label: 'A year out' },
+]
+
+/** Resolve a quick range to inclusive ISO start/end dates in the locale's calendar. */
+export function resolveQuickRange(
+  kind: QuickRangeKind,
+  todayIso: string = ymdKey(todayYmd()),
+  weekStartsOn: number = appWeekStartsOn(),
+): { start: string; end: string } {
+  switch (kind) {
+    case 'this-week': {
+      const start = startOfWeek(todayIso, weekStartsOn)
+      return { start, end: endOfWeek(todayIso, weekStartsOn) }
+    }
+    case 'next-week': {
+      const next = addDaysIso(todayIso, 7)
+      return { start: startOfWeek(next, weekStartsOn), end: endOfWeek(next, weekStartsOn) }
+    }
+    case 'this-month':
+      return { start: startOfMonth(todayIso), end: endOfMonth(todayIso) }
+    case 'next-month': {
+      const next = addMonthsIso(todayIso, 1)
+      return { start: startOfMonth(next), end: endOfMonth(next) }
+    }
+    case 'next-year': {
+      const next = addYearsIso(todayIso, 1)
+      return { start: todayIso, end: next }
+    }
+  }
+}
+
+/** "Nov 12 – 16, 2026" in the page's language. */
+export function quickRangeLabel(range: { start: string; end: string }, locale: string = uiLocale()): string {
+  return formatDateRange(range.start, range.end, locale)
+}
+
+/** "5 days · November" — the sink's second summary line. */
+export function quickRangeMeta(range: { start: string; end: string }, locale: string = uiLocale()): string {
+  const days = daysBetween(range.start, range.end) + 1
+  const month = monthNames(locale)[Number(range.start.slice(5, 7)) - 1] ?? ''
+  return `${days} day${days === 1 ? '' : 's'} · ${month}`
+}
+
+/** Anchor date (YMD) a quick range should scroll the browser to. */
+export function quickRangeAnchor(range: { start: string; end: string }): YMD {
+  return parseYmdKey(range.start) ?? todayYmd()
 }
 
 /* ── CalTime + recurrence builders (create/edit form) ───────────────────── */
