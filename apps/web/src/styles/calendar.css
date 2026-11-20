@@ -355,13 +355,13 @@
   background: var(--cx-border);
 }
 .cl-tg-span {
+  /* Position/size come from the SDK's spanStyle (inset-inline-start + width). */
   position: absolute;
-  left: 2px;
-  right: 2px;
+  box-sizing: border-box;
   border-radius: var(--cx-radius-sm);
   border: 1px solid var(--cx-border-strong);
-  border-left: 3px solid var(--cx-accent-600);
-  background: var(--cx-selection);
+  border-left: 3px solid var(--span-color, var(--cx-accent-600));
+  background: color-mix(in srgb, var(--span-color, var(--cx-accent-600)) 14%, var(--cx-surface));
   color: var(--cx-text);
   font-size: var(--cx-text-xs);
   padding: 2px 4px;
@@ -376,7 +376,7 @@
   outline: none;
 }
 .cl-tg-span:focus-visible { box-shadow: 0 0 0 2px var(--cx-ring-color); }
-.cl-tg-span[data-kind='task'] { border-left-color: var(--cx-info); background: color-mix(in srgb, var(--cx-info) 12%, transparent); }
+.cl-tg-span[data-kind='task'] { border-left-color: var(--cx-info); background: color-mix(in srgb, var(--cx-info) 12%, var(--cx-surface)); }
 .cl-tg-span[data-locked] { cursor: default; opacity: 0.85; }
 .cl-tg-span[data-dragging], .cl-tg-span[data-resizing], .cl-tg-span[data-drawing] {
   box-shadow: var(--cx-elev-2);

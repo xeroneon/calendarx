@@ -115,7 +115,7 @@ const weekGrid = definePrimitive({
           'data-kind': span.kind,
           'data-locked': span.locked ? '' : undefined,
           'data-color': span.color,
-          style: api.spans.spanStyle(span, lanes.get(span.id)),
+          style: `${api.spans.spanStyle(span, lanes.get(span.id)).replace(/;?\s*$/, ';')}--span-color:${span.color};`,
         }
       },
       bind: (el, part) => part.api.spans.bindSpan(el, part.key),
